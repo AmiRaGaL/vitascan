@@ -1,0 +1,19 @@
+{
+  "name": "vitascan",
+  "private": true,
+  "version": "0.1.0",
+  "dependencies": {
+    "@vitascan/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.0",
+    "typescript": "^5.4.0"
+  },
+  "scripts": {
+    "dev:web": "pnpm --filter @vitascan/web dev",
+    "dev:api": "pnpm --filter @vitascan/api start:dev",
+    "dev:mobile": "pnpm --filter @vitascan/mobile start",
+    "dev": "concurrently \"pnpm dev:web\" \"pnpm dev:api\"",
+    "build:shared": "pnpm --filter @vitascan/shared build"
+  }
+}
