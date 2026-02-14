@@ -11,9 +11,10 @@
   },
   "scripts": {
     "dev:web": "pnpm --filter @vitascan/web dev",
-    "dev:api": "pnpm --filter @vitascan/api start:dev",
+    "dev:api": "pnpm --filter @vitascan/api build && pnpm --filter @vitascan/api start:dev",
     "dev:mobile": "pnpm --filter @vitascan/mobile start",
     "dev": "concurrently \"pnpm dev:web\" \"pnpm dev:api\"",
-    "build:shared": "pnpm --filter @vitascan/shared build"
+    "build:shared": "pnpm --filter @vitascan/shared build",
+    "build:api": "pnpm --filter @vitascan/api build"
   }
 }
