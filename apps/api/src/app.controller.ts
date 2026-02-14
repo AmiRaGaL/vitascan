@@ -1,15 +1,23 @@
-// apps/api/src/app.controller.ts
-
 import { Controller, Get } from '@nestjs/common';
 import { AppService } from './app.service';
+import { SupabaseService } from './supabase/supabase.service';
 import type { TriageResult } from '@vitascan/shared';
 
 @Controller()
 export class AppController {
-  constructor(private readonly appService: AppService) {}
+  constructor(
+    private readonly appService: AppService,
+    private readonly supabase: SupabaseService,
+  ) {}
 
   @Get('health')
-  getHealth(): { status: string; testTriage: TriageResult } {
+  async getHealth() {
+    // Test Supabase connection
+    const { data, error } = await this.supabase.supabase
+      .from('users')
+      .select('tier')
+      .limit(1);
+
     const triage: TriageResult = {
       triageLevel: 'home',
       specialtySuggestion: null,
@@ -17,12 +25,14 @@ export class AppController {
       redFlags: [],
       confidence: 95,
       homeCareAdvice: 'Stay hydrated and rest.',
-      doctorVisitPreparationTips: 'If symptoms persist for more than 3 days, contact your PCP.'
+      doctorVisitPreparationTips: 'If symptoms persist >3 days, contact PCP.',
     };
 
     return {
       status: this.appService.getHello(),
-      testTriage: triage
+      supabaseConnected: !error,
+      dbSample: data,
+      testTriage: triage,
     };
   }
 }
