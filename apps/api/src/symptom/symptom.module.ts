@@ -1,9 +1,11 @@
+// apps/api/src/symptom/symptom.module.ts
 import { Module } from '@nestjs/common';
 import { SymptomController } from './symptom.controller';
-import { SupabaseModule } from '../supabase/supabase.module';
+import { SupabaseService } from '../supabase/supabase.service';
+import { GroqService } from './groq.service';
 
 @Module({
-  imports: [SupabaseModule],
   controllers: [SymptomController],
+  providers: [SupabaseService, GroqService],
 })
 export class SymptomModule {}

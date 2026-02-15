@@ -1,5 +1,6 @@
 import { Controller, Post, Body, HttpException, HttpStatus } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
+import { GroqService } from './groq.service';
 import type { 
   SymptomSessionStartRequest, 
   SymptomSessionStartResponse 
@@ -7,11 +8,17 @@ import type {
 
 @Controller('symptom-sessions')
 export class SymptomController {
-  constructor(private readonly supabase: SupabaseService) {}
+  constructor(
+    private readonly supabase: SupabaseService,
+    private readonly groq: GroqService  
+  ) {}
 
   @Post()
   async startSession(@Body() body: SymptomSessionStartRequest): Promise<SymptomSessionStartResponse> {
     console.log('📥 Symptom input:', body.initialInput);
+    
+    // ← NEW: Real Groq AI triage (replaces mock)
+    const triagePreview = await this.groq.getSymptomTriage(body.initialInput);
     
     const { data, error } = await this.supabase.supabase
       .from('symptom_sessions')
@@ -36,15 +43,7 @@ export class SymptomController {
 
     return {
       sessionId: data.id,
-      triagePreview: {
-        triageLevel: 'home',
-        specialtySuggestion: 'Primary Care',
-        possibleIssueCategories: ['general'],
-        redFlags: [],
-        confidence: 85,
-        homeCareAdvice: 'Rest and hydrate.',
-        doctorVisitPreparationTips: 'Monitor symptoms.'
-      }
+      triagePreview  // ← Uses real AI data
     };
   }
 }

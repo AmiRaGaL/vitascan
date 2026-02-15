@@ -1,7 +1,7 @@
 # VitaScan 
 
 **AI-Powered Symptom Triage Assistant (MVP)**  
-*Educational tool only – not medical advice.*
+*Educational tool only - not medical advice.*
 
 [![NestJS](https://img.shields.io/badge/NestJS-E0234E?logo=nestjs&logoColor=white)](https://nestjs.com/)
 [![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?logo=supabase&logoColor=white)](https://supabase.com/)
@@ -20,6 +20,6 @@
 
 1. **Clone & Install**
    ```bash
-   git clone https://github.com/YOUR_USERNAME/vitascan.git
+   git clone https://github.com/AmiRaGaL/vitascan.git
    cd vitascan
    pnpm install

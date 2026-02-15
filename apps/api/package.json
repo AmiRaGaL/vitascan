@@ -27,6 +27,8 @@
     "@supabase/supabase-js": "^2.45.0",
     "@vitascan/shared": "workspace:*",
     "dotenv": "^17.3.1",
+    "groq": "^5.9.0",
+    "groq-sdk": "^0.37.0",
     "reflect-metadata": "^0.2.0",
     "rxjs": "^7.8.1"
   },
