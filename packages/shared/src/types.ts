@@ -77,3 +77,17 @@ export interface StructuredSymptomRequest {
   answers: UserAnswer[];
   health_profile?: HealthProfile;
 }
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  name?: string;
+  avatarUrl?: string;
+  tier: UserTier;
+}
+
+export interface AuthState {
+  user: AuthUser | null;
+  isGuest: boolean;
+  loading: boolean;
+}
