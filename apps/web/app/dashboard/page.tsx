@@ -25,7 +25,7 @@ export default function DashboardPage() {
   // Don't flash content while redirecting guests
   if (isGuest) return null;
 
-  return (
+  return ( // Authenticated user dashboard
     <div className="max-w-3xl mx-auto px-4 py-10">
       <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome back 👋</h1>
       <p className="text-gray-500 mb-8">{user?.email}</p>
@@ -63,7 +63,7 @@ export default function DashboardPage() {
       </div>
 
       <button
-        onClick={logout}
+        onClick={logout} 
         className="mt-8 text-sm text-gray-400 hover:text-red-500 transition"
       >
         Sign out

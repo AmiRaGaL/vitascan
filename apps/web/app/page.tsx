@@ -13,7 +13,7 @@ export default function HomePage() {
     if (!loading && !isGuest) router.push("/dashboard");
   }, [loading, isGuest, router]);
 
-  if (loading) {
+  if (loading) { // Show spinner while auth is resolving
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-64px)]">
         <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600" />

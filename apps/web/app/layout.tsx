@@ -18,7 +18,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={inter.className} suppressHydrationWarning>
+      <body className={inter.className} suppressHydrationWarning> {/* SupabaseProvider manages auth state and provides user context to the app */}
         <SupabaseProvider>
           <Navbar />
           <main className="min-h-screen bg-gray-50">{children}</main>
