@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { useUser } from '@/hooks/useUser';
+import Link from "next/link";
+import { useUser } from "@/hooks/useUser";
 
 export function Navbar() {
   const { user, isGuest, loginWithGoogle, logout, loading } = useUser();
