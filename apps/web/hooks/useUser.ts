@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { useRouter } from 'next/navigation';
-import { useSupabase } from '@/components/providers/SupabaseProvider';
+import { useRouter } from "next/navigation";
+import { useSupabase } from "@/components/providers/SupabaseProvider";
 
 export function useUser() {
   const { supabase, user, session, tier, isGuest, loading } = useSupabase();
@@ -9,7 +9,7 @@ export function useUser() {
 
   const loginWithGoogle = async () => {
     await supabase.auth.signInWithOAuth({
-      provider: 'google',
+      provider: "google",
       options: {
         redirectTo: `${window.location.origin}/auth/callback`,
       },
@@ -19,7 +19,7 @@ export function useUser() {
   const logout = async () => {
     await supabase.auth.signOut();
     // router.push('/');
-    window.location.href = '/'; 
+    window.location.href = "/";
     router.refresh();
   };
 

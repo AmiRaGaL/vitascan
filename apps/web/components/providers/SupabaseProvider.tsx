@@ -84,7 +84,7 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
         setSession(session);
         setUser(session.user);
 
-        // ✅ Only fetch tier when session is fully stable
+        // Only fetch tier when session is fully stable
         // SIGNED_IN fires too early (cookies not propagated yet)
         if (event === "INITIAL_SESSION" || event === "TOKEN_REFRESHED") {
           fetchTier(session.user.id); // fire and forget — won't block UI
@@ -98,7 +98,7 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
         setTier("guest");
       }
 
-      setLoading(false); // ✅ Always unblock UI regardless of event
+      setLoading(false); // Always unblock UI regardless of event
     });
 
     return () => subscription.unsubscribe();
