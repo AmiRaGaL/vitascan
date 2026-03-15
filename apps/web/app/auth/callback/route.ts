@@ -1,14 +1,14 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
-export async function GET(request: Request) {
+export async function GET(request: Request) { 
   try {
     const { searchParams, origin } = new URL(request.url);
     const code = searchParams.get("code");
     const next = searchParams.get("next") ?? "/dashboard";
 
     if (!code) {
-      return NextResponse.redirect(`${origin}/?error=no_code`, { status: 302 });
+      return NextResponse.redirect(`${origin}/?error=no_code`, { status: 302 }); 
     }
 
     const supabase = await createClient();
@@ -17,7 +17,7 @@ export async function GET(request: Request) {
     if (error) {
       console.error("Auth callback error:", error.message);
       return NextResponse.redirect(`${origin}/?error=auth_failed`, {
-        status: 302,
+        status: 302, // Redirect to home with error query
       });
     }
 
