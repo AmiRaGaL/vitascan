@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import { createBrowserClient } from '@supabase/ssr';
 
 // Types matching backend
 interface BodyArea {
@@ -127,30 +128,42 @@ export default function SymptomChecker() {
   };
 
   // Submit final analysis
-  const handleSubmit = async () => {
+    const handleSubmit = async () => {
     if (!selectedBodyArea || !selectedSymptom) return;
 
     setLoading(true);
     try {
+      // 1. Get the current user's session token
+      const supabase = createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
+      const { data: { session } } = await supabase.auth.getSession();
+
       const userAnswers: UserAnswer[] = questions.map((q) => ({
+        // ... (keep your existing userAnswers logic)
         question_id: q.id,
         question_text: q.question_text,
-        answer:
-          answers[q.id] || (q.question_type === "multiple_choice" ? [] : ""),
+        answer: answers[q.id] || (q.question_type === "multiple_choice" ? [] : ""),
       }));
 
-      // Helper to parse comma-separated values
       const parseList = (value: string): string[] => {
         if (!value || !value.trim()) return [];
-        return value
-          .split(",")
-          .map((s) => s.trim())
-          .filter(Boolean);
+        return value.split(",").map((s) => s.trim()).filter(Boolean);
       };
 
+      // 2. Prepare headers (add Auth if logged in)
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (session?.access_token) {
+        headers["Authorization"] = `Bearer ${session.access_token}`;
+      }
+
+      // 3. Send request with headers
       const res = await fetch(`${API_URL}/symptom-sessions/analyze`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers, // <-- Use the new headers here
         body: JSON.stringify({
           body_area_id: selectedBodyArea.id,
           body_area_name: selectedBodyArea.name,

@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useUser } from "@/hooks/useUser";
+import { createClient } from "@/lib/supabase/client";
 
 export default function DashboardPage() {
   const { user, isGuest, loading, logout } = useUser();
@@ -25,7 +26,8 @@ export default function DashboardPage() {
   // Don't flash content while redirecting guests
   if (isGuest) return null;
 
-  return ( // Authenticated user dashboard
+  return (
+    // Authenticated user dashboard
     <div className="max-w-3xl mx-auto px-4 py-10">
       <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome back 👋</h1>
       <p className="text-gray-500 mb-8">{user?.email}</p>
@@ -52,7 +54,24 @@ export default function DashboardPage() {
           </p>
         </Link>
       </div>
-
+      <button
+        onClick={async () => {
+          const supabase = createClient();
+          const {
+            data: { session },
+          } = await supabase.auth.getSession();
+          const res = await fetch(
+            `${process.env.NEXT_PUBLIC_API_URL}/symptom-sessions`,
+            {
+              headers: { Authorization: `Bearer ${session?.access_token}` },
+            },
+          );
+          console.log("HISTORY:", await res.json());
+        }}
+        className="mb-4 bg-blue-100 text-blue-600 px-4 py-2 rounded"
+      >
+        Test History API
+      </button>
       <div className="bg-white border border-gray-200 rounded-2xl p-6">
         <h2 className="text-lg font-semibold text-gray-800 mb-4">
           Recent Sessions
@@ -63,7 +82,7 @@ export default function DashboardPage() {
       </div>
 
       <button
-        onClick={logout} 
+        onClick={logout}
         className="mt-8 text-sm text-gray-400 hover:text-red-500 transition"
       >
         Sign out
