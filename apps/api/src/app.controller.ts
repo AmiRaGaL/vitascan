@@ -1,7 +1,6 @@
 import { Controller, Get } from '@nestjs/common';
 import { AppService } from './app.service';
 import { SupabaseService } from './supabase/supabase.service';
-import type { TriageResult } from '@vitascan/shared';
 
 @Controller()
 export class AppController {
@@ -12,27 +11,21 @@ export class AppController {
 
   @Get('health')
   async getHealth() {
-    // Test Supabase connection
-    const { data, error } = await this.supabase.supabase
+    const { error } = await this.supabase.supabase
       .from('users')
-      .select('tier')
+      .select('id')
       .limit(1);
 
-    const triage: TriageResult = {
-      triageLevel: 'home',
-      specialtySuggestion: null,
-      possibleIssueCategories: ['general'],
-      redFlags: [],
-      confidence: 95,
-      homeCareAdvice: 'Stay hydrated and rest.',
-      doctorVisitPreparationTips: 'If symptoms persist >3 days, contact PCP.',
-    };
-
     return {
-      status: this.appService.getHello(),
-      supabaseConnected: !error,
-      dbSample: data,
-      testTriage: triage,
+      status: error ? 'degraded' : this.appService.getHello(),
+      timestamp: new Date().toISOString(),
+      supabase: {
+        connected: !error,
+      },
+      app: {
+        name: process.env.npm_package_name ?? '@vitascan/api',
+        version: process.env.npm_package_version ?? '0.0.1',
+      },
     };
   }
 }

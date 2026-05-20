@@ -12,6 +12,7 @@ import {
 } from "react";
 import { MedicalDisclaimer } from "@/components/MedicalDisclaimer";
 import { useUser } from "@/hooks/useUser";
+import { API_URL } from "@/lib/api";
 import { createClient } from "@/lib/supabase/client";
 
 interface ChatThread {
@@ -28,7 +29,6 @@ interface ChatMessage {
   created_at: string;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
 export default function SessionChatPage() {
   const params = useParams();

@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { MedicalDisclaimer } from "@/components/MedicalDisclaimer";
+import { API_URL } from "@/lib/api";
 import { createClient } from "@/lib/supabase/client";
 
 // Types matching backend
@@ -59,7 +60,6 @@ type Step =
   | "health-profile"
   | "results";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
 export default function SymptomChecker() {
   const router = useRouter();

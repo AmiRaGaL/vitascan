@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { useUser } from "@/hooks/useUser";
+import { API_URL } from "@/lib/api";
 import { createClient } from "@/lib/supabase/client";
 
 interface ProfileForm {
@@ -28,7 +29,6 @@ interface HealthProfile {
   diet_prefs: string[] | null;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
 const emptyForm: ProfileForm = {
   age: "",

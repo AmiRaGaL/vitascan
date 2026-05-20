@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { TriageBadge } from "@/components/TriageBadge";
 import { useUser } from "@/hooks/useUser";
+import { API_URL } from "@/lib/api";
 import { createClient } from "@/lib/supabase/client";
 
 interface SessionSummary {
@@ -40,7 +41,6 @@ interface ProfileStatus {
 type TriageFilter = "all" | "home" | "pcp" | "urgent_care" | "er";
 type SessionSort = "newest" | "oldest" | "urgency";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 const SESSION_PAGE_LIMIT = 10;
 
 const TRIAGE_FILTERS: Array<{ value: TriageFilter; label: string }> = [
