@@ -60,6 +60,7 @@ export default function SessionDetailsPage() {
   const [chatOpening, setChatOpening] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
   const [copyMessage, setCopyMessage] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (!loading && isGuest) router.push("/");
@@ -220,6 +221,38 @@ export default function SessionDetailsPage() {
     }
   }, [session]);
 
+  const deleteSession = useCallback(async () => {
+    if (!id) return;
+
+    const confirmed = window.confirm(
+      "Delete this saved symptom check? This cannot be undone.",
+    );
+    if (!confirmed) return;
+
+    setDeleting(true);
+    setError(null);
+
+    try {
+      const token = await getAccessToken();
+      const res = await fetch(`${API_URL}/symptom-sessions/${id}`, {
+        method: "DELETE",
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(data?.message || "Failed to delete session");
+      }
+
+      router.push("/dashboard");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete session");
+      setDeleting(false);
+    }
+  }, [id, router]);
+
   if (loading || sessionLoading) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-64px)]">
@@ -317,6 +350,14 @@ export default function SessionDetailsPage() {
             className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
           >
             {chatOpening ? "Opening chat..." : "Ask follow-up questions"}
+          </button>
+          <button
+            type="button"
+            onClick={deleteSession}
+            disabled={deleting}
+            className="rounded-lg border border-red-100 px-4 py-2 text-sm font-medium text-red-600 transition hover:border-red-200 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {deleting ? "Deleting..." : "Delete"}
           </button>
         </div>
         {copyMessage && (
@@ -516,4 +557,13 @@ function buildSessionSummaryText(session: SavedSession) {
     `User answers:`,
     JSON.stringify(session.user_answers ?? null, null, 2),
   ].join("\n");
+}
+
+async function getAccessToken() {
+  const supabase = createClient();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  return session?.access_token ?? null;
 }

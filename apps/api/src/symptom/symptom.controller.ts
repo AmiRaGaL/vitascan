@@ -1,9 +1,11 @@
 import {
   Controller,
+  Delete,
   Post,
   Body,
   Get,
   Param,
+  Query,
   HttpException,
   HttpStatus,
   UseGuards,
@@ -78,21 +80,40 @@ export class SymptomController {
   // Get user history
   @Get()
   @UseGuards(OptionalAuthGuard)
-  async getUserSessions(@Req() req: any) {
+  async getUserSessions(
+    @Req() req: any,
+    @Query('page') pageQuery?: string,
+    @Query('limit') limitQuery?: string,
+  ) {
     if (!req.user?.id)
       throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
 
-    const { data, error } = await this.supabase.supabase
+    const page = this.parsePositiveInt(pageQuery, 1);
+    const limit = Math.min(this.parsePositiveInt(limitQuery, 10), 50);
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+
+    const { data, error, count } = await this.supabase.supabase
       .from('symptom_sessions')
       .select(
         'id, initial_input, triage_level, specialty_suggestion, red_flags_detected, created_at',
+        { count: 'exact' },
       )
       .eq('user_id', req.user.id)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .range(from, to);
 
     if (error)
       throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
-    return data;
+
+    const total = count ?? 0;
+    return {
+      data: data ?? [],
+      page,
+      limit,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
+    };
   }
 
   // Get single session
@@ -115,6 +136,40 @@ export class SymptomController {
       throw new HttpException('Session not found', HttpStatus.NOT_FOUND);
 
     return data;
+  }
+
+  @Delete(':id')
+  @UseGuards(OptionalAuthGuard)
+  async deleteSession(@Param('id') id: string, @Req() req: any) {
+    if (!req.user?.id)
+      throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
+
+    const { data: session, error: sessionError } =
+      await this.supabase.supabase
+        .from('symptom_sessions')
+        .select('id')
+        .eq('id', id)
+        .eq('user_id', req.user.id)
+        .maybeSingle();
+
+    if (sessionError)
+      throw new HttpException(
+        sessionError.message,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    if (!session)
+      throw new HttpException('Session not found', HttpStatus.NOT_FOUND);
+
+    const { error } = await this.supabase.supabase
+      .from('symptom_sessions')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', req.user.id);
+
+    if (error)
+      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+
+    return { success: true };
   }
 
   @Post('analyze')
@@ -239,6 +294,12 @@ export class SymptomController {
     }
 
     return req.ip || req.socket?.remoteAddress || 'unknown';
+  }
+
+  private parsePositiveInt(value: string | undefined, fallback: number) {
+    const parsed = Number(value);
+    if (!Number.isInteger(parsed) || parsed < 1) return fallback;
+    return parsed;
   }
 
   private validateAnalyzePayload(

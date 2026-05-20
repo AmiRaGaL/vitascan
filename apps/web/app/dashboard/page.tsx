@@ -16,6 +16,14 @@ interface SessionSummary {
   created_at: string;
 }
 
+interface PaginatedSessions {
+  data: SessionSummary[];
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
 interface TodayUsage {
   symptom_checks_used: number;
   chats_used: number;
@@ -33,6 +41,7 @@ type TriageFilter = "all" | "home" | "pcp" | "urgent_care" | "er";
 type SessionSort = "newest" | "oldest" | "urgency";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+const SESSION_PAGE_LIMIT = 10;
 
 const TRIAGE_FILTERS: Array<{ value: TriageFilter; label: string }> = [
   { value: "all", label: "All" },
@@ -56,6 +65,13 @@ export default function DashboardPage() {
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [sessionsLoading, setSessionsLoading] = useState(true);
   const [sessionsError, setSessionsError] = useState<string | null>(null);
+  const [sessionPage, setSessionPage] = useState(1);
+  const [sessionTotal, setSessionTotal] = useState(0);
+  const [sessionTotalPages, setSessionTotalPages] = useState(1);
+  const [sessionFeedback, setSessionFeedback] = useState<string | null>(null);
+  const [deletingSessionId, setDeletingSessionId] = useState<string | null>(
+    null,
+  );
   const [usage, setUsage] = useState<TodayUsage | null>(null);
   const [usageError, setUsageError] = useState<string | null>(null);
   const [profileStatus, setProfileStatus] = useState<ProfileStatus | null>(null);
@@ -113,16 +129,21 @@ export default function DashboardPage() {
 
     try {
       const token = await getAccessToken();
-      const res = await fetch(`${API_URL}/symptom-sessions`, {
-        headers: {
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      const res = await fetch(
+        `${API_URL}/symptom-sessions?page=${sessionPage}&limit=${SESSION_PAGE_LIMIT}`,
+        {
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
         },
-      });
+      );
 
       if (!res.ok) throw new Error("Failed to load recent sessions");
 
-      const data = (await res.json()) as SessionSummary[];
-      setSessions(data);
+      const data = (await res.json()) as PaginatedSessions;
+      setSessions(data.data);
+      setSessionTotal(data.total);
+      setSessionTotalPages(data.totalPages);
     } catch (error) {
       setSessionsError(
         error instanceof Error ? error.message : "Failed to load sessions",
@@ -130,7 +151,7 @@ export default function DashboardPage() {
     } finally {
       setSessionsLoading(false);
     }
-  }, [loading, isGuest]);
+  }, [loading, isGuest, sessionPage]);
 
   const loadUsage = useCallback(async () => {
     if (loading || isGuest) return;
@@ -179,6 +200,49 @@ export default function DashboardPage() {
     loadUsage();
     loadProfileStatus();
   }, [loadSessions, loadUsage, loadProfileStatus]);
+
+  const deleteSession = useCallback(
+    async (sessionId: string) => {
+      const confirmed = window.confirm(
+        "Delete this saved symptom check? This cannot be undone.",
+      );
+      if (!confirmed) return;
+
+      setDeletingSessionId(sessionId);
+      setSessionFeedback(null);
+      setSessionsError(null);
+
+      try {
+        const token = await getAccessToken();
+        const res = await fetch(`${API_URL}/symptom-sessions/${sessionId}`, {
+          method: "DELETE",
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        });
+
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+          throw new Error(data?.message || "Failed to delete session");
+        }
+
+        setSessionFeedback("Session deleted.");
+
+        if (sessions.length === 1 && sessionPage > 1) {
+          setSessionPage((current) => current - 1);
+        } else {
+          await loadSessions();
+        }
+      } catch (error) {
+        setSessionsError(
+          error instanceof Error ? error.message : "Failed to delete session",
+        );
+      } finally {
+        setDeletingSessionId(null);
+      }
+    },
+    [loadSessions, sessionPage, sessions.length],
+  );
 
   // Show spinner while auth is resolving
   if (loading) {
@@ -296,11 +360,17 @@ export default function DashboardPage() {
             </h2>
             <p className="mt-1 text-sm text-gray-500">
               {hasSessionFilters
-                ? `${visibleSessions.length} of ${sessions.length} sessions shown`
-                : `${sessions.length} total sessions`}
+                ? `${visibleSessions.length} of ${sessions.length} sessions shown on this page (${sessionTotal} total)`
+                : `${sessionTotal} total sessions`}
             </p>
           </div>
         </div>
+
+        {sessionFeedback && (
+          <div className="mb-4 rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700">
+            {sessionFeedback}
+          </div>
+        )}
 
         {sessionsLoading ? (
           <p className="text-gray-400 text-sm">Loading recent sessions...</p>
@@ -314,7 +384,7 @@ export default function DashboardPage() {
               Retry
             </button>
           </div>
-        ) : sessions.length === 0 ? (
+        ) : sessionTotal === 0 ? (
           <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-6 text-center">
             <p className="text-sm text-gray-500">
               No sessions yet. Your completed symptom checks will show up here.
@@ -372,23 +442,57 @@ export default function DashboardPage() {
             </div>
 
             {visibleSessions.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-6 text-center">
-                <p className="text-sm text-gray-500">
-                  No sessions match your search or filters.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSessionSearch("");
-                    setTriageFilter("all");
-                  }}
-                  className="mt-4 rounded-lg bg-white px-4 py-2 text-sm font-medium text-gray-700 ring-1 ring-gray-200 transition hover:text-blue-700 hover:ring-blue-200"
-                >
-                  Clear filters
-                </button>
-              </div>
+              <>
+                <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-6 text-center">
+                  <p className="text-sm text-gray-500">
+                    No sessions match your search or filters on this page.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSessionSearch("");
+                      setTriageFilter("all");
+                    }}
+                    className="mt-4 rounded-lg bg-white px-4 py-2 text-sm font-medium text-gray-700 ring-1 ring-gray-200 transition hover:text-blue-700 hover:ring-blue-200"
+                  >
+                    Clear filters
+                  </button>
+                </div>
+                <PaginationControls
+                  page={sessionPage}
+                  totalPages={sessionTotalPages}
+                  loading={sessionsLoading}
+                  onPrevious={() =>
+                    setSessionPage((current) => Math.max(1, current - 1))
+                  }
+                  onNext={() =>
+                    setSessionPage((current) =>
+                      Math.min(sessionTotalPages, current + 1),
+                    )
+                  }
+                />
+              </>
             ) : (
-              <SessionList sessions={visibleSessions} />
+              <>
+                <SessionList
+                  sessions={visibleSessions}
+                  deletingSessionId={deletingSessionId}
+                  onDelete={deleteSession}
+                />
+                <PaginationControls
+                  page={sessionPage}
+                  totalPages={sessionTotalPages}
+                  loading={sessionsLoading}
+                  onPrevious={() =>
+                    setSessionPage((current) => Math.max(1, current - 1))
+                  }
+                  onNext={() =>
+                    setSessionPage((current) =>
+                      Math.min(sessionTotalPages, current + 1),
+                    )
+                  }
+                />
+              </>
             )}
           </>
         )}
@@ -404,7 +508,15 @@ export default function DashboardPage() {
   );
 }
 
-function SessionList({ sessions }: { sessions: SessionSummary[] }) {
+function SessionList({
+  sessions,
+  deletingSessionId,
+  onDelete,
+}: {
+  sessions: SessionSummary[];
+  deletingSessionId: string | null;
+  onDelete: (sessionId: string) => void;
+}) {
   return (
     <div className="divide-y divide-gray-100">
       {sessions.map((session) => (
@@ -438,9 +550,57 @@ function SessionList({ sessions }: { sessions: SessionSummary[] }) {
             >
               Print
             </Link>
+            <button
+              type="button"
+              onClick={() => onDelete(session.id)}
+              disabled={deletingSessionId === session.id}
+              className="rounded-lg border border-red-100 px-3 py-1.5 text-sm font-medium text-red-600 transition hover:border-red-200 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {deletingSessionId === session.id ? "Deleting..." : "Delete"}
+            </button>
           </div>
         </article>
       ))}
+    </div>
+  );
+}
+
+function PaginationControls({
+  page,
+  totalPages,
+  loading,
+  onPrevious,
+  onNext,
+}: {
+  page: number;
+  totalPages: number;
+  loading: boolean;
+  onPrevious: () => void;
+  onNext: () => void;
+}) {
+  if (totalPages <= 1) return null;
+
+  return (
+    <div className="mt-5 flex items-center justify-between border-t border-gray-100 pt-4">
+      <button
+        type="button"
+        onClick={onPrevious}
+        disabled={loading || page <= 1}
+        className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:border-blue-300 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        Previous
+      </button>
+      <p className="text-sm text-gray-500">
+        Page {page} of {totalPages}
+      </p>
+      <button
+        type="button"
+        onClick={onNext}
+        disabled={loading || page >= totalPages}
+        className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:border-blue-300 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        Next
+      </button>
     </div>
   );
 }
