@@ -172,11 +172,14 @@ export default function ProfilePage() {
                 }
                 className="w-full p-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 outline-none"
               >
-                <option value="">Select...</option>
+                <option value="">Prefer not to say</option>
                 <option value="male">Male</option>
                 <option value="female">Female</option>
                 <option value="other">Other</option>
               </select>
+              <p className="mt-1 text-xs text-gray-400">
+                Used only to tailor general symptom guidance.
+              </p>
             </div>
             <Field
               label="Height (cm)"
@@ -199,24 +202,28 @@ export default function ProfilePage() {
               setForm({ ...form, chronic_conditions: value })
             }
             placeholder="Diabetes, Hypertension"
+            helperText="Separate items with commas. Enter None or leave blank if this does not apply."
           />
           <Field
             label="Medications"
             value={form.medications}
             onChange={(value) => setForm({ ...form, medications: value })}
             placeholder="Metformin, Lisinopril"
+            helperText="Separate items with commas. Enter None or leave blank if you do not take medications."
           />
           <Field
             label="Allergies"
             value={form.allergies}
             onChange={(value) => setForm({ ...form, allergies: value })}
             placeholder="Penicillin, Peanuts"
+            helperText="Separate items with commas. Enter None or leave blank if you have no known allergies."
           />
           <Field
             label="Diet preferences"
             value={form.diet_prefs}
             onChange={(value) => setForm({ ...form, diet_prefs: value })}
             placeholder="Vegetarian, Low sodium"
+            helperText="Separate items with commas. Enter None or leave blank if you have no preferences."
           />
 
           {message && (
@@ -249,12 +256,14 @@ function Field({
   onChange,
   type = "text",
   placeholder,
+  helperText,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   type?: string;
   placeholder?: string;
+  helperText?: string;
 }) {
   return (
     <div>
@@ -268,6 +277,7 @@ function Field({
         placeholder={placeholder}
         className="w-full p-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 outline-none"
       />
+      {helperText && <p className="mt-1 text-xs text-gray-400">{helperText}</p>}
     </div>
   );
 }
@@ -281,6 +291,9 @@ async function getAccessToken() {
 }
 
 function parseList(value: string) {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "none" || normalized === "prefer not to say") return [];
+
   return value
     .split(",")
     .map((item) => item.trim())

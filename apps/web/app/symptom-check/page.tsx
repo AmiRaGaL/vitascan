@@ -87,6 +87,12 @@ export default function SymptomChecker() {
 
   const [result, setResult] = useState<TriageResult | null>(null);
   const [loading, setLoading] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [hasSavedProfile, setHasSavedProfile] = useState<boolean | null>(null);
+  const [profileReminderDismissed, setProfileReminderDismissed] =
+    useState(false);
+  const [healthProfileEdited, setHealthProfileEdited] = useState(false);
+  const [saveToProfile, setSaveToProfile] = useState(false);
 
   // Fetch body areas on mount
   useEffect(() => {
@@ -104,6 +110,7 @@ export default function SymptomChecker() {
       } = await supabase.auth.getSession();
 
       if (!session?.access_token) return;
+      setIsLoggedIn(true);
 
       const res = await fetch(`${API_URL}/profile`, {
         headers: { Authorization: `Bearer ${session.access_token}` },
@@ -112,6 +119,7 @@ export default function SymptomChecker() {
       if (!res.ok) return;
 
       const profile = (await res.json()) as SavedHealthProfile | null;
+      setHasSavedProfile(!!profile);
       if (!profile) return;
 
       setHealthProfile({
@@ -128,6 +136,14 @@ export default function SymptomChecker() {
 
     loadSavedProfile().catch(console.error);
   }, []);
+
+  const updateHealthProfile = (
+    field: keyof typeof healthProfile,
+    value: string,
+  ) => {
+    setHealthProfile((current) => ({ ...current, [field]: value }));
+    setHealthProfileEdited(true);
+  };
 
   // Fetch symptoms when body area selected
   const handleBodyAreaSelect = async (area: BodyArea) => {
@@ -198,8 +214,49 @@ export default function SymptomChecker() {
 
       const parseList = (value: string): string[] => {
         if (!value || !value.trim()) return [];
+        const normalized = value.trim().toLowerCase();
+        if (normalized === "none" || normalized === "prefer not to say") {
+          return [];
+        }
         return value.split(",").map((s) => s.trim()).filter(Boolean);
       };
+
+      const profilePayload = {
+        age: healthProfile.age ? parseInt(healthProfile.age) : undefined,
+        sex_at_birth: healthProfile.sex_at_birth || undefined,
+        height_cm: healthProfile.height_cm
+          ? parseInt(healthProfile.height_cm)
+          : undefined,
+        weight_kg: healthProfile.weight_kg
+          ? Number(healthProfile.weight_kg)
+          : undefined,
+        chronic_conditions: parseList(healthProfile.chronic_conditions),
+        medications: parseList(healthProfile.medications),
+        allergies: parseList(healthProfile.allergies),
+        diet_prefs: parseList(healthProfile.diet_prefs),
+      };
+
+      if (saveToProfile && session?.access_token) {
+        const profileRes = await fetch(`${API_URL}/profile`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            ...profilePayload,
+            age: profilePayload.age ?? null,
+            sex_at_birth: profilePayload.sex_at_birth ?? null,
+            height_cm: profilePayload.height_cm ?? null,
+            weight_kg: profilePayload.weight_kg ?? null,
+          }),
+        });
+
+        const profileData = await profileRes.json().catch(() => null);
+        if (!profileRes.ok) {
+          throw new Error(profileData?.message || "Failed to save profile");
+        }
+      }
 
       // 3. Send request with headers
       const res = await fetch(`${API_URL}/symptom-sessions/analyze`, {
@@ -216,20 +273,7 @@ export default function SymptomChecker() {
           symptom_category_id: selectedSymptom.id,
           symptom_name: selectedSymptom.name,
           answers: userAnswers,
-          health_profile: {
-            age: healthProfile.age ? parseInt(healthProfile.age) : undefined,
-            sex_at_birth: healthProfile.sex_at_birth || undefined,
-            height_cm: healthProfile.height_cm
-              ? parseInt(healthProfile.height_cm)
-              : undefined,
-            weight_kg: healthProfile.weight_kg
-              ? Number(healthProfile.weight_kg)
-              : undefined,
-            chronic_conditions: parseList(healthProfile.chronic_conditions),
-            medications: parseList(healthProfile.medications),
-            allergies: parseList(healthProfile.allergies),
-            diet_prefs: parseList(healthProfile.diet_prefs),
-          },
+          health_profile: profilePayload,
         }),
       });
 
@@ -267,6 +311,8 @@ export default function SymptomChecker() {
       diet_prefs: "",
     });
     setResult(null);
+    setHealthProfileEdited(false);
+    setSaveToProfile(false);
   };
 
   return (
@@ -281,6 +327,29 @@ export default function SymptomChecker() {
             Intelligent symptom assessment powered by AI
           </p>
         </div>
+
+        {isLoggedIn && hasSavedProfile === false && !profileReminderDismissed && (
+          <div className="mb-6 rounded-xl border border-blue-100 bg-blue-50 p-4 text-blue-900">
+            <div className="flex gap-4">
+              <div className="flex-1">
+                <h2 className="font-semibold">
+                  Complete your profile for better symptom guidance.
+                </h2>
+                <p className="mt-1 text-sm text-blue-700">
+                  You can still continue here, or fill it out once in your
+                  profile.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setProfileReminderDismissed(true)}
+                className="text-sm font-medium text-blue-700 hover:text-blue-900"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Progress Bar */}
         {step !== "results" && (
@@ -527,12 +596,7 @@ export default function SymptomChecker() {
                   <input
                     type="number"
                     value={healthProfile.age}
-                    onChange={(e) =>
-                      setHealthProfile({
-                        ...healthProfile,
-                        age: e.target.value,
-                      })
-                    }
+                    onChange={(e) => updateHealthProfile("age", e.target.value)}
                     className="w-full p-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 outline-none"
                     placeholder="e.g., 35"
                   />
@@ -545,14 +609,11 @@ export default function SymptomChecker() {
                   <select
                     value={healthProfile.sex_at_birth}
                     onChange={(e) =>
-                      setHealthProfile({
-                        ...healthProfile,
-                        sex_at_birth: e.target.value,
-                      })
+                      updateHealthProfile("sex_at_birth", e.target.value)
                     }
                     className="w-full p-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 outline-none"
                   >
-                    <option value="">Select...</option>
+                    <option value="">Prefer not to say</option>
                     <option value="male">Male</option>
                     <option value="female">Female</option>
                     <option value="other">Other</option>
@@ -567,10 +628,7 @@ export default function SymptomChecker() {
                     type="number"
                     value={healthProfile.height_cm}
                     onChange={(e) =>
-                      setHealthProfile({
-                        ...healthProfile,
-                        height_cm: e.target.value,
-                      })
+                      updateHealthProfile("height_cm", e.target.value)
                     }
                     className="w-full p-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 outline-none"
                     placeholder="e.g., 170"
@@ -585,10 +643,7 @@ export default function SymptomChecker() {
                     type="number"
                     value={healthProfile.weight_kg}
                     onChange={(e) =>
-                      setHealthProfile({
-                        ...healthProfile,
-                        weight_kg: e.target.value,
-                      })
+                      updateHealthProfile("weight_kg", e.target.value)
                     }
                     className="w-full p-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 outline-none"
                     placeholder="e.g., 72"
@@ -603,10 +658,7 @@ export default function SymptomChecker() {
                     type="text"
                     value={healthProfile.chronic_conditions}
                     onChange={(e) =>
-                      setHealthProfile({
-                        ...healthProfile,
-                        chronic_conditions: e.target.value,
-                      })
+                      updateHealthProfile("chronic_conditions", e.target.value)
                     }
                     className="w-full p-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 outline-none"
                     placeholder="e.g., Diabetes, Hypertension (comma-separated, or leave blank if none)"
@@ -621,10 +673,7 @@ export default function SymptomChecker() {
                     type="text"
                     value={healthProfile.medications}
                     onChange={(e) =>
-                      setHealthProfile({
-                        ...healthProfile,
-                        medications: e.target.value,
-                      })
+                      updateHealthProfile("medications", e.target.value)
                     }
                     className="w-full p-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 outline-none"
                     placeholder="e.g., Metformin, Lisinopril (comma-separated, or leave blank if none)"
@@ -639,10 +688,7 @@ export default function SymptomChecker() {
                     type="text"
                     value={healthProfile.allergies}
                     onChange={(e) =>
-                      setHealthProfile({
-                        ...healthProfile,
-                        allergies: e.target.value,
-                      })
+                      updateHealthProfile("allergies", e.target.value)
                     }
                     className="w-full p-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 outline-none"
                     placeholder="e.g., Penicillin, Peanuts (comma-separated, or leave blank if none)"
@@ -657,16 +703,25 @@ export default function SymptomChecker() {
                     type="text"
                     value={healthProfile.diet_prefs}
                     onChange={(e) =>
-                      setHealthProfile({
-                        ...healthProfile,
-                        diet_prefs: e.target.value,
-                      })
+                      updateHealthProfile("diet_prefs", e.target.value)
                     }
                     className="w-full p-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 outline-none"
                     placeholder="e.g., Vegetarian, Low sodium (comma-separated, or leave blank if none)"
                   />
                 </div>
               </div>
+
+              {isLoggedIn && healthProfileEdited && (
+                <label className="mt-5 flex items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={saveToProfile}
+                    onChange={(event) => setSaveToProfile(event.target.checked)}
+                    className="mt-1 h-4 w-4 text-blue-600"
+                  />
+                  <span>Save this to my profile for next time.</span>
+                </label>
+              )}
 
               <button
                 onClick={handleSubmit}

@@ -24,6 +24,12 @@ interface HealthProfileBody {
 
 const VALID_SEX_AT_BIRTH = new Set(['male', 'female', 'other']);
 
+interface ProfileStatus {
+  exists: boolean;
+  complete: boolean;
+  missingFields: string[];
+}
+
 @Controller('profile')
 @UseGuards(OptionalAuthGuard)
 export class ProfileController {
@@ -44,6 +50,23 @@ export class ProfileController {
       throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
 
     return data;
+  }
+
+  @Get('status')
+  async getProfileStatus(@Req() req: any): Promise<ProfileStatus> {
+    if (!req.user?.id)
+      throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
+
+    const { data, error } = await this.supabase.supabase
+      .from('health_profiles')
+      .select('age, sex_at_birth')
+      .eq('user_id', req.user.id)
+      .maybeSingle<Pick<HealthProfileBody, 'age' | 'sex_at_birth'>>();
+
+    if (error)
+      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+
+    return this.getCompletionStatus(data ?? null);
   }
 
   @Put()
@@ -78,6 +101,26 @@ export class ProfileController {
       throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
 
     return data;
+  }
+
+  private getCompletionStatus(
+    profile: Pick<HealthProfileBody, 'age' | 'sex_at_birth'> | null,
+  ): ProfileStatus {
+    const missingFields: string[] = [];
+
+    if (profile?.age === undefined || profile.age === null) {
+      missingFields.push('age');
+    }
+
+    if (!profile?.sex_at_birth) {
+      missingFields.push('sex_at_birth');
+    }
+
+    return {
+      exists: !!profile,
+      complete: missingFields.length === 0,
+      missingFields,
+    };
   }
 
   private validateProfile(body: HealthProfileBody): string | null {

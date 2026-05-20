@@ -22,6 +22,12 @@ interface TodayUsage {
   chats_limit: number | null;
 }
 
+interface ProfileStatus {
+  exists: boolean;
+  complete: boolean;
+  missingFields: string[];
+}
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
 export default function DashboardPage() {
@@ -32,6 +38,7 @@ export default function DashboardPage() {
   const [sessionsError, setSessionsError] = useState<string | null>(null);
   const [usage, setUsage] = useState<TodayUsage | null>(null);
   const [usageError, setUsageError] = useState<string | null>(null);
+  const [profileStatus, setProfileStatus] = useState<ProfileStatus | null>(null);
   const symptomLimit = usage?.symptom_checks_limit ?? 5;
   const symptomUsed = usage?.symptom_checks_used ?? 0;
   const isAtSymptomLimit = symptomUsed >= symptomLimit;
@@ -97,10 +104,31 @@ export default function DashboardPage() {
     }
   }, [loading, isGuest]);
 
+  const loadProfileStatus = useCallback(async () => {
+    if (loading || isGuest) return;
+
+    try {
+      const token = await getAccessToken();
+      const res = await fetch(`${API_URL}/profile/status`, {
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+
+      if (!res.ok) return;
+
+      const data = (await res.json()) as ProfileStatus;
+      setProfileStatus(data);
+    } catch {
+      setProfileStatus(null);
+    }
+  }, [loading, isGuest]);
+
   useEffect(() => {
     loadSessions();
     loadUsage();
-  }, [loadSessions, loadUsage]);
+    loadProfileStatus();
+  }, [loadSessions, loadUsage, loadProfileStatus]);
 
   // Show spinner while auth is resolving
   if (loading) {
@@ -119,6 +147,27 @@ export default function DashboardPage() {
     <div className="max-w-3xl mx-auto px-4 py-10">
       <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome back 👋</h1>
       <p className="text-gray-500 mb-8">{user?.email}</p>
+
+      {profileStatus && !profileStatus.complete && (
+        <div className="mb-6 rounded-2xl border border-blue-100 bg-blue-50 p-5">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="font-semibold text-blue-950">
+                Complete your health profile for better symptom guidance.
+              </h2>
+              <p className="mt-1 text-sm text-blue-700">
+                It only needs a few basics, and you can update it anytime.
+              </p>
+            </div>
+            <Link
+              href="/profile"
+              className="inline-flex shrink-0 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
+            >
+              Complete profile
+            </Link>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-10">
         {isAtSymptomLimit ? (
