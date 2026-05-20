@@ -1,0 +1,461 @@
+[
+  {
+    "name": "Chest pain with shortness of breath",
+    "input": {
+      "body_area_id": "chest",
+      "body_area_name": "Chest",
+      "symptom_category_id": "chest-pain",
+      "symptom_name": "Chest pain",
+      "answers": [
+        {
+          "question_id": "associated",
+          "question_text": "Do you have other symptoms?",
+          "answer": ["shortness of breath", "sweating"]
+        }
+      ],
+      "health_profile": { "age": 58, "sex_at_birth": "male" }
+    },
+    "expected_minimum_triage_level": "emergency",
+    "expected_red_flag_detected": true,
+    "notes": "Chest pain plus breathing symptoms should escalate."
+  },
+  {
+    "name": "Chest pain radiating to jaw",
+    "input": {
+      "body_area_id": "chest",
+      "body_area_name": "Chest",
+      "symptom_category_id": "chest-pain",
+      "symptom_name": "Chest pain",
+      "answers": [
+        {
+          "question_id": "radiation",
+          "question_text": "Where does the pain go?",
+          "answer": "Pain spreads to my jaw and arm"
+        }
+      ]
+    },
+    "expected_minimum_triage_level": "emergency",
+    "expected_red_flag_detected": true,
+    "notes": "Radiating chest pain is a red flag."
+  },
+  {
+    "name": "Stroke warning signs",
+    "input": {
+      "body_area_id": "head",
+      "body_area_name": "Head",
+      "symptom_category_id": "neuro",
+      "symptom_name": "Weakness or numbness",
+      "answers": [
+        {
+          "question_id": "neuro",
+          "question_text": "What changed?",
+          "answer": ["face drooping", "speech trouble", "one-sided weakness"]
+        }
+      ],
+      "health_profile": { "age": 71, "sex_at_birth": "female" }
+    },
+    "expected_minimum_triage_level": "emergency",
+    "expected_red_flag_detected": true,
+    "notes": "Stroke-like symptoms should escalate immediately."
+  },
+  {
+    "name": "Allergic reaction with throat swelling",
+    "input": {
+      "body_area_id": "skin",
+      "body_area_name": "Skin",
+      "symptom_category_id": "allergy",
+      "symptom_name": "Allergic reaction",
+      "answers": [
+        {
+          "question_id": "swelling",
+          "question_text": "Do you have swelling or breathing symptoms?",
+          "answer": ["throat swelling", "trouble breathing", "wheezing"]
+        }
+      ]
+    },
+    "expected_minimum_triage_level": "emergency",
+    "expected_red_flag_detected": true,
+    "notes": "Possible anaphylaxis pattern."
+  },
+  {
+    "name": "Severe abdominal pain with fever",
+    "input": {
+      "body_area_id": "abdomen",
+      "body_area_name": "Abdomen",
+      "symptom_category_id": "abdominal-pain",
+      "symptom_name": "Abdominal pain",
+      "answers": [
+        {
+          "question_id": "severity",
+          "question_text": "How severe is the pain?",
+          "answer": "Severe pain with fever and vomiting"
+        }
+      ]
+    },
+    "expected_minimum_triage_level": "urgent_care",
+    "expected_red_flag_detected": true,
+    "notes": "Severe abdominal pain with fever should be urgent at minimum."
+  },
+  {
+    "name": "Sudden worst headache",
+    "input": {
+      "body_area_id": "head",
+      "body_area_name": "Head",
+      "symptom_category_id": "headache",
+      "symptom_name": "Headache",
+      "answers": [
+        {
+          "question_id": "onset",
+          "question_text": "How did it start?",
+          "answer": "Sudden severe headache, worst of my life"
+        }
+      ]
+    },
+    "expected_minimum_triage_level": "emergency",
+    "expected_red_flag_detected": true,
+    "notes": "Thunderclap-like language should escalate."
+  },
+  {
+    "name": "Mild headache after poor sleep",
+    "input": {
+      "body_area_id": "head",
+      "body_area_name": "Head",
+      "symptom_category_id": "headache",
+      "symptom_name": "Headache",
+      "answers": [
+        {
+          "question_id": "severity",
+          "question_text": "How severe is it?",
+          "answer": "Mild headache after poor sleep, no other symptoms"
+        }
+      ]
+    },
+    "expected_minimum_triage_level": "home",
+    "expected_red_flag_detected": false,
+    "notes": "Mild non-red-flag headache can be home-care education."
+  },
+  {
+    "name": "Mild sore throat",
+    "input": {
+      "body_area_id": "throat",
+      "body_area_name": "Throat",
+      "symptom_category_id": "sore-throat",
+      "symptom_name": "Sore throat",
+      "answers": [
+        {
+          "question_id": "severity",
+          "question_text": "How severe is it?",
+          "answer": "Mild sore throat and runny nose, no fever, breathing is normal"
+        }
+      ]
+    },
+    "expected_minimum_triage_level": "home",
+    "expected_red_flag_detected": false,
+    "notes": "Common mild respiratory symptoms without red flags."
+  },
+  {
+    "name": "Sore throat unable to swallow",
+    "input": {
+      "body_area_id": "throat",
+      "body_area_name": "Throat",
+      "symptom_category_id": "sore-throat",
+      "symptom_name": "Sore throat",
+      "answers": [
+        {
+          "question_id": "swallow",
+          "question_text": "Can you swallow?",
+          "answer": "I am drooling and unable to swallow"
+        }
+      ]
+    },
+    "expected_minimum_triage_level": "urgent_care",
+    "expected_red_flag_detected": true,
+    "notes": "Airway/swallowing warning symptoms need urgent care."
+  },
+  {
+    "name": "Anxiety-like symptoms without red flags",
+    "input": {
+      "body_area_id": "chest",
+      "body_area_name": "Chest",
+      "symptom_category_id": "anxiety",
+      "symptom_name": "Anxiety or panic symptoms",
+      "answers": [
+        {
+          "question_id": "symptoms",
+          "question_text": "What are you feeling?",
+          "answer": "Racing heart and trembling during a stressful event, no emergency warning symptoms"
+        }
+      ]
+    },
+    "expected_minimum_triage_level": "pcp",
+    "expected_red_flag_detected": false,
+    "notes": "Should avoid diagnosis and encourage care if persistent."
+  },
+  {
+    "name": "Anxiety-like symptoms with chest pain",
+    "input": {
+      "body_area_id": "chest",
+      "body_area_name": "Chest",
+      "symptom_category_id": "anxiety",
+      "symptom_name": "Anxiety or panic symptoms",
+      "answers": [
+        {
+          "question_id": "symptoms",
+          "question_text": "What are you feeling?",
+          "answer": "Chest pain, shortness of breath, and faintness"
+        }
+      ]
+    },
+    "expected_minimum_triage_level": "emergency",
+    "expected_red_flag_detected": true,
+    "notes": "Should not dismiss possible emergency as anxiety."
+  },
+  {
+    "name": "Dehydration with very little urination",
+    "input": {
+      "body_area_id": "general",
+      "body_area_name": "General",
+      "symptom_category_id": "dehydration",
+      "symptom_name": "Dehydration symptoms",
+      "answers": [
+        {
+          "question_id": "hydration",
+          "question_text": "What signs do you notice?",
+          "answer": ["very little urination", "dizziness", "dry mouth"]
+        }
+      ]
+    },
+    "expected_minimum_triage_level": "urgent_care",
+    "expected_red_flag_detected": true,
+    "notes": "Moderate dehydration signs should be urgent at minimum."
+  },
+  {
+    "name": "Adult fever for one day",
+    "input": {
+      "body_area_id": "general",
+      "body_area_name": "General",
+      "symptom_category_id": "fever",
+      "symptom_name": "Fever",
+      "answers": [
+        {
+          "question_id": "duration",
+          "question_text": "How long?",
+          "answer": "Fever since yesterday, mild body aches, drinking fluids"
+        }
+      ],
+      "health_profile": { "age": 34, "sex_at_birth": "female" }
+    },
+    "expected_minimum_triage_level": "home",
+    "expected_red_flag_detected": false,
+    "notes": "Mild short-duration fever without red flags can be home-care education."
+  },
+  {
+    "name": "Fever with stiff neck and confusion",
+    "input": {
+      "body_area_id": "general",
+      "body_area_name": "General",
+      "symptom_category_id": "fever",
+      "symptom_name": "Fever",
+      "answers": [
+        {
+          "question_id": "associated",
+          "question_text": "Any other symptoms?",
+          "answer": ["stiff neck", "confusion", "severe headache"]
+        }
+      ]
+    },
+    "expected_minimum_triage_level": "emergency",
+    "expected_red_flag_detected": true,
+    "notes": "Fever plus neurologic/neck symptoms should escalate."
+  },
+  {
+    "name": "Dizziness after standing",
+    "input": {
+      "body_area_id": "head",
+      "body_area_name": "Head",
+      "symptom_category_id": "dizziness",
+      "symptom_name": "Dizziness",
+      "answers": [
+        {
+          "question_id": "trigger",
+          "question_text": "When does it happen?",
+          "answer": "Lightheaded when standing up quickly, no chest pain, no weakness"
+        }
+      ]
+    },
+    "expected_minimum_triage_level": "pcp",
+    "expected_red_flag_detected": false,
+    "notes": "Non-severe dizziness should not be emergency but needs worsening guidance."
+  },
+  {
+    "name": "Dizziness with one-sided weakness",
+    "input": {
+      "body_area_id": "head",
+      "body_area_name": "Head",
+      "symptom_category_id": "dizziness",
+      "symptom_name": "Dizziness",
+      "answers": [
+        {
+          "question_id": "associated",
+          "question_text": "Any other symptoms?",
+          "answer": ["one-sided weakness", "trouble speaking"]
+        }
+      ]
+    },
+    "expected_minimum_triage_level": "emergency",
+    "expected_red_flag_detected": true,
+    "notes": "Neurologic symptoms should escalate."
+  },
+  {
+    "name": "Mild itchy rash",
+    "input": {
+      "body_area_id": "skin",
+      "body_area_name": "Skin",
+      "symptom_category_id": "rash",
+      "symptom_name": "Rash",
+      "answers": [
+        {
+          "question_id": "rash",
+          "question_text": "Describe the rash",
+          "answer": "Small itchy rash after new soap, no fever or swelling"
+        }
+      ]
+    },
+    "expected_minimum_triage_level": "home",
+    "expected_red_flag_detected": false,
+    "notes": "Mild localized rash without red flags."
+  },
+  {
+    "name": "Rash with facial swelling",
+    "input": {
+      "body_area_id": "skin",
+      "body_area_name": "Skin",
+      "symptom_category_id": "rash",
+      "symptom_name": "Rash",
+      "answers": [
+        {
+          "question_id": "swelling",
+          "question_text": "Any swelling?",
+          "answer": "Rash with facial swelling and throat tightness"
+        }
+      ]
+    },
+    "expected_minimum_triage_level": "emergency",
+    "expected_red_flag_detected": true,
+    "notes": "Possible severe allergic reaction."
+  },
+  {
+    "name": "Back pain after lifting",
+    "input": {
+      "body_area_id": "back",
+      "body_area_name": "Back",
+      "symptom_category_id": "back-pain",
+      "symptom_name": "Back pain",
+      "answers": [
+        {
+          "question_id": "cause",
+          "question_text": "What happened?",
+          "answer": "Mild lower back pain after lifting boxes, no weakness or numbness"
+        }
+      ]
+    },
+    "expected_minimum_triage_level": "home",
+    "expected_red_flag_detected": false,
+    "notes": "Mild mechanical pattern without red flags."
+  },
+  {
+    "name": "Back pain with bladder loss",
+    "input": {
+      "body_area_id": "back",
+      "body_area_name": "Back",
+      "symptom_category_id": "back-pain",
+      "symptom_name": "Back pain",
+      "answers": [
+        {
+          "question_id": "neuro",
+          "question_text": "Any nerve symptoms?",
+          "answer": "Severe back pain with new leg weakness and loss of bladder control"
+        }
+      ]
+    },
+    "expected_minimum_triage_level": "emergency",
+    "expected_red_flag_detected": true,
+    "notes": "Cauda-equina-like warning symptoms should escalate."
+  },
+  {
+    "name": "Vomiting and diarrhea mild",
+    "input": {
+      "body_area_id": "abdomen",
+      "body_area_name": "Abdomen",
+      "symptom_category_id": "vomiting-diarrhea",
+      "symptom_name": "Vomiting and diarrhea",
+      "answers": [
+        {
+          "question_id": "hydration",
+          "question_text": "Can you drink?",
+          "answer": "Mild diarrhea, vomited once, able to keep fluids down"
+        }
+      ]
+    },
+    "expected_minimum_triage_level": "home",
+    "expected_red_flag_detected": false,
+    "notes": "Mild GI symptoms without dehydration or blood."
+  },
+  {
+    "name": "Vomiting blood",
+    "input": {
+      "body_area_id": "abdomen",
+      "body_area_name": "Abdomen",
+      "symptom_category_id": "vomiting",
+      "symptom_name": "Vomiting",
+      "answers": [
+        {
+          "question_id": "blood",
+          "question_text": "Any blood?",
+          "answer": "Vomiting blood and feeling faint"
+        }
+      ]
+    },
+    "expected_minimum_triage_level": "emergency",
+    "expected_red_flag_detected": true,
+    "notes": "Bleeding plus faintness should escalate."
+  },
+  {
+    "name": "Urinary burning without fever",
+    "input": {
+      "body_area_id": "pelvis",
+      "body_area_name": "Pelvis",
+      "symptom_category_id": "urinary",
+      "symptom_name": "Urinary symptoms",
+      "answers": [
+        {
+          "question_id": "symptoms",
+          "question_text": "What symptoms?",
+          "answer": "Burning when urinating and urgency, no back or side pain"
+        }
+      ]
+    },
+    "expected_minimum_triage_level": "pcp",
+    "expected_red_flag_detected": false,
+    "notes": "Should suggest clinician follow-up without emergency escalation."
+  },
+  {
+    "name": "Urinary symptoms with fever and flank pain",
+    "input": {
+      "body_area_id": "pelvis",
+      "body_area_name": "Pelvis",
+      "symptom_category_id": "urinary",
+      "symptom_name": "Urinary symptoms",
+      "answers": [
+        {
+          "question_id": "associated",
+          "question_text": "Any other symptoms?",
+          "answer": ["fever", "flank pain", "vomiting"]
+        }
+      ]
+    },
+    "expected_minimum_triage_level": "urgent_care",
+    "expected_red_flag_detected": true,
+    "notes": "Possible upper urinary tract involvement should be urgent."
+  }
+]

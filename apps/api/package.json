@@ -8,6 +8,8 @@
   "scripts": {
     "clean": "rimraf dist",
     "build": "nest build",
+    "eval:chat-safety": "ts-node evals/run-chat-safety-evals.ts",
+    "eval:triage": "ts-node evals/run-triage-evals.ts",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "ingest:kb": "ts-node scripts/ingest-kb.ts",
     "start": "nest start",
