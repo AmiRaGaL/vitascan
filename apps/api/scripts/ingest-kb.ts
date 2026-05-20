@@ -10,6 +10,8 @@ interface KbDocument {
   source: string;
   content: string;
   tags: string[] | null;
+  emergency_red_flags: string[] | null;
+  last_reviewed: string | null;
 }
 
 interface EmbeddingResponse {
@@ -38,7 +40,7 @@ const supabase = createClient(supabaseUrl, serviceRoleKey);
 async function main() {
   const { data: documents, error } = await supabase
     .from('kb_documents')
-    .select('id, title, source, content, tags')
+    .select('id, title, source, content, tags, emergency_red_flags, last_reviewed')
     .order('created_at', { ascending: true });
 
   if (error) throw new Error(error.message);
@@ -61,6 +63,8 @@ async function main() {
             title: document.title,
             source: document.source,
             tags: document.tags ?? [],
+            emergency_red_flags: document.emergency_red_flags ?? [],
+            last_reviewed: document.last_reviewed,
           },
         });
 

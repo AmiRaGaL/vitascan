@@ -213,6 +213,7 @@ export class SymptomController {
       this.buildSymptomKbQuery(body),
       5,
     );
+    const ragReferences = this.formatReferenceSummary(referenceChunks);
 
     // 1. Get AI response
     let triageResult = await this.groq.analyzeStructuredSymptoms(
@@ -243,6 +244,7 @@ export class SymptomController {
           flagEvaluation.hasRedFlags || triageResult.redFlags.length > 0,
         initial_input: `${body.body_area_name}: ${body.symptom_name}`,
         summary: triageResult.homeCareAdvice,
+        rag_references: ragReferences,
       })
       .select('id')
       .single();
@@ -269,7 +271,7 @@ export class SymptomController {
     return {
       sessionId: data.id,
       triage: triageResult,
-      references: this.formatReferenceSummary(referenceChunks),
+      references: ragReferences,
     };
   }
 
@@ -283,12 +285,49 @@ export class SymptomController {
       })
       .join('\n');
 
+    const age = body.health_profile?.age;
+    const sex = body.health_profile?.sex_at_birth;
+    const combinedText = [
+      body.body_area_name,
+      body.symptom_name,
+      answersText,
+    ]
+      .join(' ')
+      .toLowerCase();
+    const redFlagTerms = this.extractRedFlagTerms(combinedText);
+
     return [
       `Body area: ${body.body_area_name}`,
       `Symptom: ${body.symptom_name}`,
       `Answers: ${answersText || 'None'}`,
-      `Health profile: ${JSON.stringify(body.health_profile ?? null)}`,
+      `Age: ${age ?? 'Not provided'}`,
+      `Sex assigned at birth: ${sex ?? 'Not provided'}`,
+      `Red-flag terms: ${redFlagTerms.join(', ') || 'None detected in query text'}`,
     ].join('\n');
+  }
+
+  private extractRedFlagTerms(text: string): string[] {
+    const terms = [
+      'chest pain',
+      'shortness of breath',
+      'trouble breathing',
+      'fainting',
+      'confusion',
+      'weakness',
+      'numbness',
+      'speech trouble',
+      'severe pain',
+      'sudden',
+      'blood',
+      'stiff neck',
+      'swelling',
+      'blue lips',
+      'dehydration',
+      'pregnancy',
+      'major trauma',
+    ];
+
+    return terms.filter((term) => text.includes(term));
   }
 
   private formatReferenceSummary(chunks: KnowledgeBaseChunk[]) {

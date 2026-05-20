@@ -164,7 +164,7 @@ export class ChatController {
     if (historyError) this.throwSupabaseError(historyError.message);
 
     const referenceChunks = await this.knowledgeBase.retrieveRelevantChunks(
-      this.buildChatKbQuery(content, session),
+      this.buildChatKbQuery(content, session, history ?? []),
       5,
     );
 
@@ -201,12 +201,18 @@ export class ChatController {
   private buildChatKbQuery(
     userMessage: string,
     session: SymptomSessionContext,
+    messages: Array<{ sender: string; content: string }>,
   ): string {
+    const recentMessages = messages
+      .slice(-3)
+      .map((message) => `${message.sender}: ${message.content}`)
+      .join('\n');
+
     return [
       `User message: ${userMessage}`,
-      `Saved concern: ${session.initial_input ?? 'Not provided'}`,
-      `Triage level: ${session.triage_level ?? 'Not provided'}`,
-      `Summary: ${session.summary ?? 'Not provided'}`,
+      `Session summary: ${session.summary ?? 'Not provided'}`,
+      `Saved triage level: ${session.triage_level ?? 'Not provided'}`,
+      `Previous 3 messages: ${recentMessages || 'None'}`,
     ].join('\n');
   }
 

@@ -22,6 +22,7 @@ interface TrustedReference {
   chunk_text: string;
   title: string;
   source: string;
+  metadata?: Record<string, unknown>;
 }
 
 @Injectable()
@@ -73,6 +74,8 @@ HEALTH PROFILE:${healthProfileText}
 TRUSTED REFERENCE CONTEXT:
 ${referenceContext}
 
+If trusted reference context is limited or unavailable, be more conservative. Use general safety guidance, encourage professional care for persistent or worsening symptoms, and do not speculate beyond the supplied symptom details.
+
 OUTPUT FORMAT: Return ONLY a valid JSON object. Do not include any markdown formatting, code blocks, or explanations.
 
 {
@@ -81,7 +84,7 @@ OUTPUT FORMAT: Return ONLY a valid JSON object. Do not include any markdown form
   "possibleIssueCategories": ["Cardiac", "Musculoskeletal"],
   "redFlags": ["Chest pain radiating to arm", "Severe pain"],
   "confidence": 85,
-  "homeCareAdvice": "Rest and monitor symptoms. Take over-the-counter pain relief if needed.",
+  "homeCareAdvice": "Monitor symptoms and seek medical care if symptoms persist, worsen, or feel concerning.",
   "doctorVisitPreparationTips": "Note when symptoms started and what makes them worse."
 }
 
@@ -93,6 +96,7 @@ TRIAGE RULES:
 - Use the trusted reference context for educational grounding when relevant.
 - Do not invent facts beyond the symptom data, triage rules, and trusted reference context.
 - Do not diagnose, prescribe medication, or provide medication dosing.
+- Emergency red flags override normal advice. If red flags are present, recommend urgent or emergency care even if other symptoms appear mild.
 
 Return ONLY the JSON object, nothing else.`;
 
@@ -139,7 +143,7 @@ Return ONLY the JSON object, nothing else.`;
       possibleIssueCategories: ['General'],
       redFlags: [],
       confidence: 50,
-      homeCareAdvice: 'Unable to fully analyze symptoms. Please consult a healthcare provider for proper evaluation.',
+      homeCareAdvice: 'Unable to fully analyze symptoms. Please use caution and consult a healthcare provider for proper evaluation, especially if symptoms are severe, sudden, persistent, or worsening.',
       doctorVisitPreparationTips: 'Describe your symptoms in detail, including when they started and what makes them better or worse.'
     };
   }
@@ -219,6 +223,8 @@ Health profile JSON: ${JSON.stringify(data.session.health_profile_snapshot ?? nu
 TRUSTED REFERENCE CONTEXT:
 ${referenceContext}
 
+If trusted reference context is limited or unavailable, keep the answer conservative and avoid adding unsupported medical claims.
+
 CHAT HISTORY:
 ${history}
 
@@ -244,10 +250,21 @@ private formatTrustedReferences(references: TrustedReference[]): string {
 
   return references
     .slice(0, 5)
-    .map(
-      (reference, index) =>
-        `[${index + 1}] ${reference.title} (${reference.source})\n${reference.chunk_text}`,
-    )
+    .map((reference, index) => {
+      const emergencyFlags = Array.isArray(
+        reference.metadata?.emergency_red_flags,
+      )
+        ? reference.metadata.emergency_red_flags.join(', ')
+        : '';
+      const reviewed = reference.metadata?.last_reviewed
+        ? `\nLast reviewed: ${reference.metadata.last_reviewed}`
+        : '';
+      const flags = emergencyFlags
+        ? `\nEmergency red flags: ${emergencyFlags}`
+        : '';
+
+      return `[${index + 1}] ${reference.title} (${reference.source})${reviewed}${flags}\n${reference.chunk_text}`;
+    })
     .join('\n\n');
 }
 }
