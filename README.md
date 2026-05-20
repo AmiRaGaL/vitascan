@@ -1,76 +1,107 @@
-# VitaScan 🏥
+# VitaScan
 
-AI-powered symptom triage and health guidance — built as an educational tool, not a replacement for professional medical advice.
+AI-powered symptom triage and health guidance built as an educational MVP. VitaScan is not a medical device and does not provide a diagnosis.
 
-[![NestJS](https://img.shields.io/badge/NestJS-E0234E?logo=nestjs&logoColor=white)](https://nestjs.com/)
-[![Next.js](https://img.shields.io/badge/Next.js-000000?logo=next.js&logoColor=white)](https://nextjs.org/)
-[![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?logo=supabase&logoColor=white)](https://supabase.com/)
-[![Groq](https://img.shields.io/badge/Groq-FF6B35?logoColor=white)](https://groq.com/)
+## MVP Status
 
----
+Currently works:
 
-## What is VitaScan?
+- Guest symptom checks with basic daily limit behavior.
+- Supabase Google login.
+- Health profile create/update.
+- Logged-in symptom checks saved to session history.
+- Dashboard usage counts, profile prompt, search/filter/sort, pagination, print route, and session deletion.
+- Saved session detail pages with emergency guidance, copy summary, print summary, recipes, and delete.
+- Post-triage chat for logged-in users with daily free chat limits.
+- Supabase-backed RLS policies for user-owned data.
+- API `/health` endpoint for deployment smoke tests.
 
-VitaScan helps users understand their symptoms and decide on the right next step — whether that's staying home, seeing a doctor, or heading to the ER. It uses a guided multi-step wizard and an AI triage engine powered by Groq (Llama 4) to produce structured, color-coded recommendations.
+Not implemented yet:
 
-This is a personal project built to explore AI in healthcare UX. It is not a medical device and makes no clinical claims.
-
----
-
-## Current Status
-
-Phases 1 through 3B are complete. The app has a working monorepo, a live API, a Supabase database, a guided symptom checker, and full Google OAuth authentication.
-
-| Area | Status | Notes |
-|------|--------|-------|
-| Monorepo setup | Done | pnpm workspaces across api, web, shared |
-| NestJS API | Done | Symptom sessions, triage, body areas |
-| Supabase DB | Done | 10 tables, RLS policies, pgvector ready |
-| AI triage | Done | Groq / Llama 4 Scout with structured output |
-| Web app | Done | Next.js with Tailwind, guided wizard |
-| Google Auth | Done | Supabase OAuth, protected dashboard |
-| RAG / KB | In progress | Phase 4 |
-| AI Chat | Planned | Phase 6 |
-| Mobile app | Planned | Phase 8 (Expo) |
-
----
+- Server-side history search/filtering.
+- PDF generation or email sharing.
+- Bulk session deletion.
+- Mobile app production flow.
+- CI/CD pipeline.
+- Clinical validation or regulated medical-device workflows.
 
 ## Tech Stack
 
-- **Web** — Next.js (App Router), Tailwind CSS, deployed on Vercel
-- **API** — NestJS, TypeScript, deployed on Render
-- **Database** — Supabase (PostgreSQL, pgvector, Row Level Security)
-- **Auth** — Supabase Auth with Google OAuth
-- **AI** — Groq API (Llama 4 Scout) for triage analysis
-- **Monorepo** — pnpm workspaces with shared TypeScript types
+- Web: Next.js App Router, React, Tailwind CSS
+- API: NestJS, TypeScript
+- Database/Auth: Supabase Postgres and Supabase Auth
+- AI: Groq API
+- Monorepo: pnpm workspaces
 
----
+## Local Development
 
-## How It Works
-
-The symptom checker walks users through a 5-step wizard:
-
-1. Select a body area (Head, Chest, Abdomen, Back, Limbs, Skin, General)
-2. Choose a specific symptom from that area
-3. Answer follow-up questions about severity, duration, and triggers
-4. Optionally provide a basic health profile (age, conditions, medications)
-5. Receive an AI-generated triage result with color-coded urgency level
-
-Triage levels are: **Home care**, **See a PCP**, **Urgent care**, or **Emergency room**. Each result includes red flag detection, a specialty suggestion, home care advice, and tips for preparing for a doctor visit.
-
----
-
-## Getting Started
-
-### Prerequisites
-- Node.js 20+
-- pnpm 9+
-- A Supabase project
-- A Groq API key
-
-### Install
+Install dependencies:
 
 ```bash
-git clone https://github.com/AmiRaGaL/vitascan.git
-cd vitascan
 pnpm install
+```
+
+Copy env templates and fill in local values:
+
+```bash
+cp .env.example .env
+cp apps/api/.env.example apps/api/.env
+cp apps/web/.env.example apps/web/.env.local
+```
+
+Run the API:
+
+```bash
+pnpm dev:api
+```
+
+Run the web app:
+
+```bash
+pnpm dev:web
+```
+
+Run both:
+
+```bash
+pnpm dev
+```
+
+Run focused checks:
+
+```bash
+pnpm --filter @vitascan/api build
+pnpm --filter @vitascan/api test
+pnpm --filter @vitascan/web exec tsc --noEmit
+```
+
+## Required Env Vars
+
+API:
+
+```bash
+SUPABASE_URL=
+SUPABASE_SERVICE_ROLE_KEY=
+SUPABASE_JWT_SECRET=
+GROQ_API_KEY=
+PORT=
+NODE_ENV=
+WEB_ORIGIN=
+```
+
+Web:
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+NEXT_PUBLIC_API_URL=
+```
+
+## Docs
+
+- Deployment notes: [docs/deployment.md](docs/deployment.md)
+- Manual QA checklist: [docs/qa-checklist.md](docs/qa-checklist.md)
+
+## Safety
+
+VitaScan is for education only and does not provide a diagnosis. For emergencies, call local emergency services.

@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MedicalDisclaimer } from "@/components/MedicalDisclaimer";
 import { API_URL } from "@/lib/api";
@@ -65,6 +65,7 @@ export default function SymptomChecker() {
   const router = useRouter();
   const [step, setStep] = useState<Step>("body-area");
   const [bodyAreas, setBodyAreas] = useState<BodyArea[]>([]);
+  const [bodyAreasError, setBodyAreasError] = useState<string | null>(null);
   const [symptoms, setSymptoms] = useState<SymptomCategory[]>([]);
   const [questions, setQuestions] = useState<SymptomQuestion[]>([]);
 
@@ -95,12 +96,24 @@ export default function SymptomChecker() {
   const [saveToProfile, setSaveToProfile] = useState(false);
 
   // Fetch body areas on mount
-  useEffect(() => {
-    fetch(`${API_URL}/symptom-sessions/body-areas`)
-      .then((res) => res.json())
-      .then(setBodyAreas)
-      .catch(console.error);
+  const loadBodyAreas = useCallback(async () => {
+    setBodyAreasError(null);
+    try {
+      const res = await fetch(`${API_URL}/symptom-sessions/body-areas`);
+      if (!res.ok) throw new Error("Failed to load body areas");
+      const data = await res.json().catch(() => []);
+      setBodyAreas(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error(error);
+      setBodyAreasError(
+        error instanceof Error ? error.message : "Failed to load body areas",
+      );
+    }
   }, []);
+
+  useEffect(() => {
+    loadBodyAreas();
+  }, [loadBodyAreas]);
 
   useEffect(() => {
     const loadSavedProfile = async () => {
@@ -153,8 +166,8 @@ export default function SymptomChecker() {
       const res = await fetch(
         `${API_URL}/symptom-sessions/symptom-categories/${area.id}`,
       );
-      const data = await res.json();
-      setSymptoms(data);
+      const data = await res.json().catch(() => []);
+      setSymptoms(Array.isArray(data) ? data : []);
       setStep("symptom");
     } catch (error) {
       console.error(error);
@@ -172,8 +185,8 @@ export default function SymptomChecker() {
       const res = await fetch(
         `${API_URL}/symptom-sessions/symptom-questions/${symptom.id}`,
       );
-      const data = await res.json();
-      setQuestions(data);
+      const data = await res.json().catch(() => []);
+      setQuestions(Array.isArray(data) ? data : []);
       setStep("questions");
     } catch (error) {
       console.error(error);
@@ -412,6 +425,22 @@ export default function SymptomChecker() {
                 Select the area of your body that&apos;s affected
               </p>
 
+              {bodyAreasError ? (
+                <div className="rounded-xl border border-red-200 bg-red-50 p-4">
+                  <p className="text-sm text-red-700">{bodyAreasError}</p>
+                  <button
+                    type="button"
+                    onClick={loadBodyAreas}
+                    className="mt-3 rounded-lg bg-white px-4 py-2 text-sm font-medium text-red-700 ring-1 ring-red-200"
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : bodyAreas.length === 0 ? (
+                <p className="rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-500">
+                  No symptom categories are available right now.
+                </p>
+              ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {bodyAreas.map((area) => (
                   <button
@@ -434,6 +463,7 @@ export default function SymptomChecker() {
                   </button>
                 ))}
               </div>
+              )}
             </div>
           )}
 

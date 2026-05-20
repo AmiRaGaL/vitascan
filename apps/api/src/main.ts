@@ -27,7 +27,7 @@ async function bootstrap() {
 function getAllowedOrigins() {
   const configuredOrigins = (process.env.WEB_ORIGIN ?? '')
     .split(',')
-    .map((origin) => origin.trim())
+    .map((origin) => origin.trim().replace(/\/$/, ''))
     .filter(Boolean);
 
   return [
