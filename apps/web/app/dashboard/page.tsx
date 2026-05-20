@@ -271,10 +271,9 @@ export default function DashboardPage() {
         ) : (
           <div className="divide-y divide-gray-100">
             {sessions.map((session) => (
-              <Link
+              <article
                 key={session.id}
-                href={`/sessions/${session.id}`}
-                className="block py-4 first:pt-0 last:pb-0 hover:bg-gray-50 transition"
+                className="py-4 first:pt-0 last:pb-0"
               >
                 <div className="flex items-start justify-between gap-4">
                   <div>
@@ -287,7 +286,21 @@ export default function DashboardPage() {
                   </div>
                   <TriageBadge level={session.triage_level} />
                 </div>
-              </Link>
+                <div className="mt-3 flex gap-2">
+                  <Link
+                    href={`/sessions/${session.id}`}
+                    className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:border-blue-300 hover:text-blue-700"
+                  >
+                    View
+                  </Link>
+                  <Link
+                    href={`/sessions/${session.id}?print=1`}
+                    className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:border-blue-300 hover:text-blue-700"
+                  >
+                    Print
+                  </Link>
+                </div>
+              </article>
             ))}
           </div>
         )}

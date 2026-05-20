@@ -2,7 +2,14 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { MedicalDisclaimer } from "@/components/MedicalDisclaimer";
 import { normalizeTriageLevel, TriageBadge } from "@/components/TriageBadge";
 import { useUser } from "@/hooks/useUser";
@@ -37,6 +44,7 @@ export default function SessionDetailsPage() {
   const params = useParams();
   const router = useRouter();
   const { isGuest, loading } = useUser();
+  const autoPrintStarted = useRef(false);
   const id = useMemo(() => {
     const value = params.id;
     return Array.isArray(value) ? value[0] : value;
@@ -51,6 +59,7 @@ export default function SessionDetailsPage() {
   const [recipesError, setRecipesError] = useState<string | null>(null);
   const [chatOpening, setChatOpening] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
+  const [copyMessage, setCopyMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && isGuest) router.push("/");
@@ -181,6 +190,36 @@ export default function SessionDetailsPage() {
     }
   }, [id, router]);
 
+  useEffect(() => {
+    if (
+      autoPrintStarted.current ||
+      loading ||
+      sessionLoading ||
+      !session
+    ) {
+      return;
+    }
+
+    const searchParams = new URLSearchParams(window.location.search);
+    if (searchParams.get("print") !== "1") return;
+
+    autoPrintStarted.current = true;
+    window.setTimeout(() => window.print(), 250);
+  }, [loading, session, sessionLoading]);
+
+  const copySummary = useCallback(async () => {
+    if (!session) return;
+
+    setCopyMessage(null);
+
+    try {
+      await navigator.clipboard.writeText(buildSessionSummaryText(session));
+      setCopyMessage("Summary copied.");
+    } catch {
+      setCopyMessage("Unable to copy summary.");
+    }
+  }, [session]);
+
   if (loading || sessionLoading) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-64px)]">
@@ -222,12 +261,15 @@ export default function SessionDetailsPage() {
     normalizedLevel === "er";
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-10">
-      <Link href="/dashboard" className="text-sm text-blue-600 hover:underline">
+    <div className="session-print-root max-w-3xl mx-auto px-4 py-10">
+      <Link
+        href="/dashboard"
+        className="print-hidden text-sm text-blue-600 hover:underline"
+      >
         Back to dashboard
       </Link>
 
-      <div className="mt-6 bg-white border border-gray-200 rounded-2xl p-6">
+      <div className="print-card mt-6 bg-white border border-gray-200 rounded-2xl p-6">
         <div className="flex items-start justify-between gap-4 mb-6">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">
@@ -243,17 +285,31 @@ export default function SessionDetailsPage() {
         <MedicalDisclaimer className="mb-6 rounded-lg border border-gray-200 bg-gray-50 p-3" />
 
         {showEmergencyGuidance && (
-          <div className="mb-6 rounded-lg border border-red-300 bg-red-50 p-5 text-red-900">
+          <section className="mb-6 rounded-lg border border-red-300 bg-red-50 p-5 text-red-900">
             <h2 className="text-lg font-semibold">Urgent care guidance</h2>
             <p className="mt-2 text-sm leading-6">
               This may require urgent or emergency care. Call emergency
               services or go to the nearest ER if symptoms are severe, sudden,
               or worsening.
             </p>
-          </div>
+          </section>
         )}
 
-        <div className="mb-6">
+        <div className="print-hidden mb-6 flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:border-blue-300 hover:text-blue-700"
+          >
+            Print summary
+          </button>
+          <button
+            type="button"
+            onClick={copySummary}
+            className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:border-blue-300 hover:text-blue-700"
+          >
+            Copy summary
+          </button>
           <button
             type="button"
             onClick={openChat}
@@ -262,32 +318,81 @@ export default function SessionDetailsPage() {
           >
             {chatOpening ? "Opening chat..." : "Ask follow-up questions"}
           </button>
-          {chatError && <p className="mt-2 text-sm text-red-500">{chatError}</p>}
         </div>
+        {copyMessage && (
+          <p
+            className={`print-hidden mb-4 text-sm ${
+              copyMessage.includes("copied") ? "text-green-600" : "text-red-500"
+            }`}
+          >
+            {copyMessage}
+          </p>
+        )}
+        {chatError && (
+          <p className="print-hidden mb-4 text-sm text-red-500">{chatError}</p>
+        )}
 
         {error && <p className="mb-4 text-sm text-red-500">{error}</p>}
 
-        <div className="space-y-5">
-          <Detail label="Suggested specialty" value={session.specialty_suggestion} />
-          <Detail
-            label="LLM confidence"
-            value={
-              session.llm_confidence === null
-                ? null
-                : `${session.llm_confidence}%`
-            }
-          />
-          <Detail label="Summary" value={session.summary} />
+        <div className="space-y-6">
+          <SessionSection title="Overview">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Detail
+                label="Session"
+                value={session.initial_input || "Symptom check"}
+              />
+              <Detail
+                label="Date"
+                value={new Date(session.created_at).toLocaleString()}
+              />
+              <Detail
+                label="Triage level"
+                value={formatTriageLevel(session.triage_level)}
+              />
+              <Detail
+                label="LLM confidence"
+                value={
+                  session.llm_confidence === null
+                    ? null
+                    : `${session.llm_confidence}%`
+                }
+              />
+            </div>
+          </SessionSection>
 
-          <JsonBlock label="User answers" value={session.user_answers} />
-          <JsonBlock
-            label="Health profile snapshot"
-            value={session.health_profile_snapshot}
-          />
+          <SessionSection title="Recommended care">
+            <div className="space-y-4">
+              <Detail
+                label="Suggested specialty"
+                value={session.specialty_suggestion}
+              />
+              <Detail label="Summary / advice" value={session.summary} />
+            </div>
+          </SessionSection>
+
+          <SessionSection title="Red flags">
+            <p
+              className={`text-sm font-medium ${
+                session.red_flags_detected ? "text-red-700" : "text-gray-700"
+              }`}
+            >
+              {session.red_flags_detected
+                ? "Red flags were detected in this session."
+                : "No red flags were detected in this session."}
+            </p>
+          </SessionSection>
+
+          <SessionSection title="Answers">
+            <JsonBlock value={session.user_answers} />
+          </SessionSection>
+
+          <SessionSection title="Health profile snapshot">
+            <JsonBlock value={session.health_profile_snapshot} />
+          </SessionSection>
         </div>
       </div>
 
-      <section className="mt-6 bg-white border border-gray-200 rounded-2xl p-6">
+      <section className="print-hidden mt-6 bg-white border border-gray-200 rounded-2xl p-6">
         <div className="mb-5">
           <h2 className="text-xl font-bold text-gray-900">
             Recommended recipes
@@ -357,6 +462,21 @@ export default function SessionDetailsPage() {
   );
 }
 
+function SessionSection({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="border-t border-gray-100 pt-5 first:border-t-0 first:pt-0">
+      <h2 className="mb-3 text-lg font-semibold text-gray-900">{title}</h2>
+      {children}
+    </section>
+  );
+}
+
 function Detail({ label, value }: { label: string; value: string | null }) {
   return (
     <div>
@@ -366,13 +486,34 @@ function Detail({ label, value }: { label: string; value: string | null }) {
   );
 }
 
-function JsonBlock({ label, value }: { label: string; value: unknown }) {
+function JsonBlock({ value }: { value: unknown }) {
   return (
-    <div>
-      <h2 className="text-sm font-semibold text-gray-500">{label}</h2>
-      <pre className="mt-2 overflow-x-auto rounded-lg bg-gray-950 p-4 text-sm text-gray-100">
-        {JSON.stringify(value ?? null, null, 2)}
-      </pre>
-    </div>
+    <pre className="overflow-x-auto rounded-lg bg-gray-950 p-4 text-sm text-gray-100">
+      {JSON.stringify(value ?? null, null, 2)}
+    </pre>
   );
+}
+
+function formatTriageLevel(level: string | null) {
+  if (!level) return "Pending";
+  if (level === "er" || level === "emergency") return "ER";
+  return level.replace(/_/g, " ");
+}
+
+function buildSessionSummaryText(session: SavedSession) {
+  return [
+    `VitaScan session summary`,
+    ``,
+    `Symptom/session: ${session.initial_input || "Symptom check"}`,
+    `Date: ${new Date(session.created_at).toLocaleString()}`,
+    `Triage level: ${formatTriageLevel(session.triage_level)}`,
+    `Red flags detected: ${session.red_flags_detected ? "Yes" : "No"}`,
+    `Specialty suggestion: ${session.specialty_suggestion || "Not provided"}`,
+    ``,
+    `Summary/advice:`,
+    session.summary || "Not provided",
+    ``,
+    `User answers:`,
+    JSON.stringify(session.user_answers ?? null, null, 2),
+  ].join("\n");
 }

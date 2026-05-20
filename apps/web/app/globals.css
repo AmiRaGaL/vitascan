@@ -24,3 +24,38 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .session-print-root,
+  .session-print-root * {
+    visibility: visible;
+  }
+
+  .session-print-root {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    max-width: none !important;
+    padding: 0 !important;
+  }
+
+  .print-hidden {
+    display: none !important;
+  }
+
+  .print-card {
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .session-print-root pre {
+    white-space: pre-wrap;
+    border: 1px solid #d1d5db;
+    background: #ffffff !important;
+    color: #111827 !important;
+  }
+}
