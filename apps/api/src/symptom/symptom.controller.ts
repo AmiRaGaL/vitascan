@@ -84,7 +84,9 @@ export class SymptomController {
 
     const { data, error } = await this.supabase.supabase
       .from('symptom_sessions')
-      .select('id, initial_input, triage_level, red_flags_detected, created_at')
+      .select(
+        'id, initial_input, triage_level, specialty_suggestion, red_flags_detected, created_at',
+      )
       .eq('user_id', req.user.id)
       .order('created_at', { ascending: false });
 

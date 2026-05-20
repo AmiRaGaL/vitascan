@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { TriageBadge } from "@/components/TriageBadge";
@@ -11,6 +11,7 @@ interface SessionSummary {
   id: string;
   initial_input: string | null;
   triage_level: string | null;
+  specialty_suggestion: string | null;
   red_flags_detected: boolean | null;
   created_at: string;
 }
@@ -28,7 +29,26 @@ interface ProfileStatus {
   missingFields: string[];
 }
 
+type TriageFilter = "all" | "home" | "pcp" | "urgent_care" | "er";
+type SessionSort = "newest" | "oldest" | "urgency";
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+
+const TRIAGE_FILTERS: Array<{ value: TriageFilter; label: string }> = [
+  { value: "all", label: "All" },
+  { value: "home", label: "Home" },
+  { value: "pcp", label: "PCP" },
+  { value: "urgent_care", label: "Urgent Care" },
+  { value: "er", label: "ER" },
+];
+
+const URGENCY_RANK: Record<string, number> = {
+  er: 4,
+  emergency: 4,
+  urgent_care: 3,
+  pcp: 2,
+  home: 1,
+};
 
 export default function DashboardPage() {
   const { user, isGuest, loading, logout } = useUser();
@@ -39,6 +59,9 @@ export default function DashboardPage() {
   const [usage, setUsage] = useState<TodayUsage | null>(null);
   const [usageError, setUsageError] = useState<string | null>(null);
   const [profileStatus, setProfileStatus] = useState<ProfileStatus | null>(null);
+  const [sessionSearch, setSessionSearch] = useState("");
+  const [triageFilter, setTriageFilter] = useState<TriageFilter>("all");
+  const [sessionSort, setSessionSort] = useState<SessionSort>("newest");
   const symptomLimit = usage?.symptom_checks_limit ?? 5;
   const symptomUsed = usage?.symptom_checks_used ?? 0;
   const isAtSymptomLimit = symptomUsed >= symptomLimit;
@@ -50,6 +73,33 @@ export default function DashboardPage() {
     usage.chats_limit !== null &&
     chatLimit - chatUsed <= 2 &&
     chatUsed < chatLimit;
+  const hasSessionFilters =
+    sessionSearch.trim().length > 0 || triageFilter !== "all";
+  const visibleSessions = useMemo(() => {
+    const query = sessionSearch.trim().toLowerCase();
+
+    return sessions
+      .filter((session) => {
+        const normalizedLevel = normalizeTriageForFilter(session.triage_level);
+        const matchesFilter =
+          triageFilter === "all" || normalizedLevel === triageFilter;
+        const matchesSearch =
+          !query ||
+          [
+            session.initial_input,
+            session.triage_level,
+            normalizedLevel,
+            session.specialty_suggestion,
+          ]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase()
+            .includes(query);
+
+        return matchesFilter && matchesSearch;
+      })
+      .sort((a, b) => sortSessions(a, b, sessionSort));
+  }, [sessionSearch, sessionSort, sessions, triageFilter]);
 
   useEffect(() => {
     if (!loading && isGuest) router.push("/");
@@ -239,9 +289,19 @@ export default function DashboardPage() {
       </div>
 
       <div className="bg-white border border-gray-200 rounded-2xl p-6">
-        <h2 className="text-lg font-semibold text-gray-800 mb-4">
-          Recent Sessions
-        </h2>
+        <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-800">
+              Recent Sessions
+            </h2>
+            <p className="mt-1 text-sm text-gray-500">
+              {hasSessionFilters
+                ? `${visibleSessions.length} of ${sessions.length} sessions shown`
+                : `${sessions.length} total sessions`}
+            </p>
+          </div>
+        </div>
+
         {sessionsLoading ? (
           <p className="text-gray-400 text-sm">Loading recent sessions...</p>
         ) : sessionsError ? (
@@ -269,40 +329,68 @@ export default function DashboardPage() {
             )}
           </div>
         ) : (
-          <div className="divide-y divide-gray-100">
-            {sessions.map((session) => (
-              <article
-                key={session.id}
-                className="py-4 first:pt-0 last:pb-0"
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="font-medium text-gray-900">
-                      {session.initial_input || "Symptom check"}
-                    </p>
-                    <p className="mt-1 text-sm text-gray-500">
-                      {new Date(session.created_at).toLocaleString()}
-                    </p>
-                  </div>
-                  <TriageBadge level={session.triage_level} />
+          <>
+            <div className="mb-4 space-y-3">
+              <input
+                type="search"
+                value={sessionSearch}
+                onChange={(event) => setSessionSearch(event.target.value)}
+                placeholder="Search sessions, triage, or specialty..."
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+              />
+
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-wrap gap-2">
+                  {TRIAGE_FILTERS.map((filter) => (
+                    <button
+                      key={filter.value}
+                      type="button"
+                      onClick={() => setTriageFilter(filter.value)}
+                      className={`rounded-full border px-3 py-1.5 text-sm font-medium transition ${
+                        triageFilter === filter.value
+                          ? "border-blue-600 bg-blue-50 text-blue-700"
+                          : "border-gray-200 bg-white text-gray-600 hover:border-blue-300 hover:text-blue-700"
+                      }`}
+                    >
+                      {filter.label}
+                    </button>
+                  ))}
                 </div>
-                <div className="mt-3 flex gap-2">
-                  <Link
-                    href={`/sessions/${session.id}`}
-                    className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:border-blue-300 hover:text-blue-700"
-                  >
-                    View
-                  </Link>
-                  <Link
-                    href={`/sessions/${session.id}?print=1`}
-                    className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:border-blue-300 hover:text-blue-700"
-                  >
-                    Print
-                  </Link>
-                </div>
-              </article>
-            ))}
-          </div>
+
+                <select
+                  value={sessionSort}
+                  onChange={(event) =>
+                    setSessionSort(event.target.value as SessionSort)
+                  }
+                  className="rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                >
+                  <option value="newest">Newest first</option>
+                  <option value="oldest">Oldest first</option>
+                  <option value="urgency">Highest urgency first</option>
+                </select>
+              </div>
+            </div>
+
+            {visibleSessions.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-6 text-center">
+                <p className="text-sm text-gray-500">
+                  No sessions match your search or filters.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSessionSearch("");
+                    setTriageFilter("all");
+                  }}
+                  className="mt-4 rounded-lg bg-white px-4 py-2 text-sm font-medium text-gray-700 ring-1 ring-gray-200 transition hover:text-blue-700 hover:ring-blue-200"
+                >
+                  Clear filters
+                </button>
+              </div>
+            ) : (
+              <SessionList sessions={visibleSessions} />
+            )}
+          </>
         )}
       </div>
 
@@ -312,6 +400,47 @@ export default function DashboardPage() {
       >
         Sign out
       </button>
+    </div>
+  );
+}
+
+function SessionList({ sessions }: { sessions: SessionSummary[] }) {
+  return (
+    <div className="divide-y divide-gray-100">
+      {sessions.map((session) => (
+        <article key={session.id} className="py-4 first:pt-0 last:pb-0">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="font-medium text-gray-900">
+                {session.initial_input || "Symptom check"}
+              </p>
+              <p className="mt-1 text-sm text-gray-500">
+                {new Date(session.created_at).toLocaleString()}
+              </p>
+              {session.specialty_suggestion && (
+                <p className="mt-1 text-sm text-gray-500">
+                  Specialty: {session.specialty_suggestion}
+                </p>
+              )}
+            </div>
+            <TriageBadge level={session.triage_level} />
+          </div>
+          <div className="mt-3 flex gap-2">
+            <Link
+              href={`/sessions/${session.id}`}
+              className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:border-blue-300 hover:text-blue-700"
+            >
+              View
+            </Link>
+            <Link
+              href={`/sessions/${session.id}?print=1`}
+              className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:border-blue-300 hover:text-blue-700"
+            >
+              Print
+            </Link>
+          </div>
+        </article>
+      ))}
     </div>
   );
 }
@@ -335,6 +464,35 @@ function UsageLine({
       {limit === null && <span className="text-gray-400"> / no daily cap</span>}
     </p>
   );
+}
+
+function normalizeTriageForFilter(level: string | null | undefined): TriageFilter {
+  if (level === "emergency" || level === "er") return "er";
+  if (level === "urgent_care") return "urgent_care";
+  if (level === "pcp") return "pcp";
+  if (level === "home") return "home";
+  return "all";
+}
+
+function sortSessions(
+  a: SessionSummary,
+  b: SessionSummary,
+  sort: SessionSort,
+) {
+  if (sort === "oldest") {
+    return (
+      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    );
+  }
+
+  if (sort === "urgency") {
+    const urgencyDiff =
+      (URGENCY_RANK[normalizeTriageForFilter(b.triage_level)] ?? 0) -
+      (URGENCY_RANK[normalizeTriageForFilter(a.triage_level)] ?? 0);
+    if (urgencyDiff !== 0) return urgencyDiff;
+  }
+
+  return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
 }
 
 async function getAccessToken() {
