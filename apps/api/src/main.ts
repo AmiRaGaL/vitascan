@@ -74,7 +74,7 @@ function logRequestSummary(req: Request, res: Response, next: NextFunction) {
 
   res.on('finish', () => {
     const userId = (req as any).user?.id ?? null;
-    const route = req.route?.path ?? req.path;
+    const route = sanitizeRoute(req.route?.path ?? req.path);
     const responseTimeMs = Date.now() - startedAt;
     console.log(
       JSON.stringify({
@@ -88,6 +88,13 @@ function logRequestSummary(req: Request, res: Response, next: NextFunction) {
   });
 
   next();
+}
+
+function sanitizeRoute(route: string) {
+  return route.replace(
+    /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi,
+    ':id',
+  );
 }
 
 bootstrap();
