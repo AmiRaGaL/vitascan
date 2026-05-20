@@ -10,10 +10,12 @@ import {
   useRef,
   useState,
 } from "react";
+import { EmptyState } from "@/components/EmptyState";
+import { ErrorState } from "@/components/ErrorState";
 import { MedicalDisclaimer } from "@/components/MedicalDisclaimer";
 import { normalizeTriageLevel, TriageBadge } from "@/components/TriageBadge";
 import { useUser } from "@/hooks/useUser";
-import { API_URL } from "@/lib/api";
+import { ApiError, apiFetch } from "@/lib/api";
 import { createClient } from "@/lib/supabase/client";
 
 interface SavedSession {
@@ -82,25 +84,19 @@ export default function SessionDetailsPage() {
           data: { session: authSession },
         } = await supabase.auth.getSession();
 
-        const res = await fetch(`${API_URL}/symptom-sessions/${id}`, {
-          headers: {
-            ...(authSession?.access_token
-              ? { Authorization: `Bearer ${authSession.access_token}` }
-              : {}),
-          },
-        });
-
-        if (res.status === 404) {
-          setNotFound(true);
-          setSession(null);
-          setRecipes([]);
-          setRecipesLoading(false);
+        if (!authSession?.access_token) {
+          router.push("/");
           return;
         }
 
-        if (!res.ok) throw new Error("Failed to load session");
-
-        const data = (await res.json()) as SavedSession | null;
+        const data = await apiFetch<SavedSession | null>(
+          `/symptom-sessions/${id}`,
+          {
+          headers: {
+            Authorization: `Bearer ${authSession.access_token}`,
+          },
+          },
+        );
         if (!data) {
           setNotFound(true);
           setSession(null);
@@ -111,6 +107,17 @@ export default function SessionDetailsPage() {
 
         setSession(data);
       } catch (err) {
+        if (err instanceof ApiError && err.statusCode === 401) {
+          router.push("/");
+          return;
+        }
+        if (err instanceof ApiError && err.statusCode === 404) {
+          setNotFound(true);
+          setSession(null);
+          setRecipes([]);
+          setRecipesLoading(false);
+          return;
+        }
         setError(err instanceof Error ? err.message : "Failed to load session");
         setRecipes([]);
         setRecipesLoading(false);
@@ -125,21 +132,18 @@ export default function SessionDetailsPage() {
           data: { session: authSession },
         } = await supabase.auth.getSession();
 
-        const recipesRes = await fetch(
-          `${API_URL}/symptom-sessions/${id}/recipes`,
+        if (!authSession?.access_token) return;
+
+        const recipeData = await apiFetch<Recipe[]>(
+          `/symptom-sessions/${id}/recipes`,
           {
             headers: {
-              ...(authSession?.access_token
-                ? { Authorization: `Bearer ${authSession.access_token}` }
-                : {}),
+              Authorization: `Bearer ${authSession.access_token}`,
             },
           },
         );
 
-        if (!recipesRes.ok) throw new Error("Failed to load recipes");
-
-        const recipeData = (await recipesRes.json()) as Recipe[];
-        setRecipes(recipeData);
+        setRecipes(Array.isArray(recipeData) ? recipeData : []);
       } catch (err) {
         setRecipes([]);
         setRecipesError(
@@ -151,7 +155,7 @@ export default function SessionDetailsPage() {
     };
 
     loadSessionAndRecipes();
-  }, [loading, isGuest, id]);
+  }, [loading, isGuest, id, router]);
 
   const openChat = useCallback(async () => {
     if (!id) return;
@@ -165,24 +169,26 @@ export default function SessionDetailsPage() {
         data: { session: authSession },
       } = await supabase.auth.getSession();
 
-      const res = await fetch(`${API_URL}/chat/threads`, {
+      if (!authSession?.access_token) {
+        router.push("/");
+        return;
+      }
+
+      await apiFetch(`/chat/threads`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(authSession?.access_token
-            ? { Authorization: `Bearer ${authSession.access_token}` }
-            : {}),
+          Authorization: `Bearer ${authSession.access_token}`,
         },
         body: JSON.stringify({ symptom_session_id: id }),
       });
 
-      const data = await res.json().catch(() => null);
-      if (!res.ok) {
-        throw new Error(data?.message || "Failed to open follow-up chat");
-      }
-
       router.push(`/sessions/${id}/chat`);
     } catch (err) {
+      if (err instanceof ApiError && err.statusCode === 401) {
+        router.push("/");
+        return;
+      }
       setChatError(
         err instanceof Error ? err.message : "Failed to open follow-up chat",
       );
@@ -234,20 +240,24 @@ export default function SessionDetailsPage() {
 
     try {
       const token = await getAccessToken();
-      const res = await fetch(`${API_URL}/symptom-sessions/${id}`, {
+      if (!token) {
+        router.push("/");
+        return;
+      }
+
+      await apiFetch<{ success: boolean }>(`/symptom-sessions/${id}`, {
         method: "DELETE",
         headers: {
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          Authorization: `Bearer ${token}`,
         },
       });
 
-      const data = await res.json().catch(() => null);
-      if (!res.ok) {
-        throw new Error(data?.message || "Failed to delete session");
-      }
-
       router.push("/dashboard");
     } catch (err) {
+      if (err instanceof ApiError && err.statusCode === 401) {
+        router.push("/");
+        return;
+      }
       setError(err instanceof Error ? err.message : "Failed to delete session");
       setDeleting(false);
     }
@@ -269,19 +279,19 @@ export default function SessionDetailsPage() {
         <Link href="/dashboard" className="text-sm text-blue-600 hover:underline">
           Back to dashboard
         </Link>
-        <div className="mt-6 bg-white border border-gray-200 rounded-2xl p-8 text-center">
-          <h1 className="text-2xl font-bold text-gray-900">
-            {error || "Session not found"}
-          </h1>
-          <p className="mt-2 text-sm text-gray-500">
-            This session may have been removed or may not belong to your account.
-          </p>
+        <div className="mt-6">
+          <EmptyState
+            title={error || "Session not found"}
+            description="This session may have been removed or may not belong to your account."
+            action={
           <Link
             href="/dashboard"
-            className="mt-5 inline-flex rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
+            className="inline-flex rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
           >
             Return to dashboard
           </Link>
+            }
+          />
         </div>
       </div>
     );
@@ -373,7 +383,11 @@ export default function SessionDetailsPage() {
           <p className="print-hidden mb-4 text-sm text-red-500">{chatError}</p>
         )}
 
-        {error && <p className="mb-4 text-sm text-red-500">{error}</p>}
+        {error && (
+          <div className="mb-4">
+            <ErrorState message={error} />
+          </div>
+        )}
 
         <div className="space-y-6">
           <SessionSection title="Overview">
@@ -446,11 +460,12 @@ export default function SessionDetailsPage() {
         {recipesLoading ? (
           <p className="text-sm text-gray-400">Loading recommended recipes...</p>
         ) : recipesError ? (
-          <p className="text-sm text-red-500">{recipesError}</p>
+          <ErrorState message={recipesError} />
         ) : recipes.length === 0 ? (
-          <p className="text-sm text-gray-400">
-            No recipe recommendations are available for this session yet.
-          </p>
+          <EmptyState
+            title="No recipes available"
+            description="No recipe recommendations are available for this session yet."
+          />
         ) : (
           <div className="space-y-5">
             {recipes.map((recipe) => (

@@ -11,8 +11,10 @@ import {
   useState,
 } from "react";
 import { MedicalDisclaimer } from "@/components/MedicalDisclaimer";
+import { EmptyState } from "@/components/EmptyState";
+import { ErrorState } from "@/components/ErrorState";
 import { useUser } from "@/hooks/useUser";
-import { API_URL } from "@/lib/api";
+import { ApiError, apiFetch } from "@/lib/api";
 import { createClient } from "@/lib/supabase/client";
 
 interface ChatThread {
@@ -57,23 +59,23 @@ export default function SessionChatPage() {
       data: { session },
     } = await supabase.auth.getSession();
 
-    return {
-      ...(session?.access_token
-        ? { Authorization: `Bearer ${session.access_token}` }
-        : {}),
-    };
+    if (!session?.access_token) {
+      throw new ApiError("Authentication required", 401);
+    }
+
+    return { Authorization: `Bearer ${session.access_token}` };
   }, []);
 
   const loadMessages = useCallback(
     async (threadId: string) => {
       const authHeaders = await getAuthHeaders();
-      const res = await fetch(`${API_URL}/chat/threads/${threadId}/messages`, {
-        headers: authHeaders,
-      });
-
-      const data = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(data?.message || "Failed to load messages");
-      setMessages(data as ChatMessage[]);
+      const data = await apiFetch<ChatMessage[]>(
+        `/chat/threads/${threadId}/messages`,
+        {
+          headers: authHeaders,
+        },
+      );
+      setMessages(Array.isArray(data) ? data : []);
     },
     [getAuthHeaders],
   );
@@ -87,7 +89,7 @@ export default function SessionChatPage() {
 
       try {
         const authHeaders = await getAuthHeaders();
-        const res = await fetch(`${API_URL}/chat/threads`, {
+        const openedThread = await apiFetch<ChatThread>("/chat/threads", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -96,15 +98,13 @@ export default function SessionChatPage() {
           body: JSON.stringify({ symptom_session_id: sessionId }),
         });
 
-        const data = await res.json().catch(() => null);
-        if (!res.ok) {
-          throw new Error(data?.message || "Failed to open follow-up chat");
-        }
-
-        const openedThread = data as ChatThread;
         setThread(openedThread);
         await loadMessages(openedThread.id);
       } catch (err) {
+        if (err instanceof ApiError && err.statusCode === 401) {
+          router.push("/");
+          return;
+        }
         setError(
           err instanceof Error ? err.message : "Failed to open follow-up chat",
         );
@@ -114,7 +114,7 @@ export default function SessionChatPage() {
     };
 
     loadThread();
-  }, [getAuthHeaders, isGuest, loadMessages, loading, sessionId]);
+  }, [getAuthHeaders, isGuest, loadMessages, loading, router, sessionId]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -142,7 +142,10 @@ export default function SessionChatPage() {
 
     try {
       const authHeaders = await getAuthHeaders();
-      const res = await fetch(`${API_URL}/chat/threads/${thread.id}/messages`, {
+      const data = await apiFetch<{
+        userMessage: ChatMessage;
+        message: ChatMessage;
+      }>(`/chat/threads/${thread.id}/messages`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -151,15 +154,16 @@ export default function SessionChatPage() {
         body: JSON.stringify({ content }),
       });
 
-      const data = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(data?.message || "Failed to send message");
-
       setMessages((current) => [
         ...current.filter((message) => message.id !== optimisticMessage.id),
         data.userMessage as ChatMessage,
         data.message as ChatMessage,
       ]);
     } catch (err) {
+      if (err instanceof ApiError && err.statusCode === 401) {
+        router.push("/");
+        return;
+      }
       setMessages((current) =>
         current.filter((message) => message.id !== optimisticMessage.id),
       );
@@ -202,16 +206,19 @@ export default function SessionChatPage() {
       <MedicalDisclaimer className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-amber-900" />
 
       {error && (
-        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-          {error}
+        <div className="mb-4">
+          <ErrorState message={error} />
         </div>
       )}
 
       <section className="flex min-h-[420px] flex-1 flex-col rounded-2xl border border-gray-200 bg-white">
         <div className="flex-1 space-y-4 overflow-y-auto p-4">
           {messages.length === 0 ? (
-            <div className="flex h-full min-h-[300px] items-center justify-center text-center text-sm text-gray-400">
-              Ask a follow-up question about this triage session.
+            <div className="flex h-full min-h-[300px] items-center justify-center">
+              <EmptyState
+                title="No messages yet"
+                description="Ask a follow-up question about this triage session."
+              />
             </div>
           ) : (
             messages.map((message) => (

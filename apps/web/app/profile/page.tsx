@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
+import { ErrorState } from "@/components/ErrorState";
 import { useUser } from "@/hooks/useUser";
-import { API_URL } from "@/lib/api";
+import { ApiError, apiFetch } from "@/lib/api";
 import { createClient } from "@/lib/supabase/client";
 
 interface ProfileForm {
@@ -63,15 +64,17 @@ export default function ProfilePage() {
 
       try {
         const token = await getAccessToken();
-        const res = await fetch(`${API_URL}/profile`, {
+        if (!token) {
+          router.push("/");
+          return;
+        }
+
+        const profile = await apiFetch<HealthProfile | null>("/profile", {
           headers: {
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            Authorization: `Bearer ${token}`,
           },
         });
 
-        if (!res.ok) throw new Error("Failed to load profile");
-
-        const profile = (await res.json()) as HealthProfile | null;
         if (!profile) return;
 
         setForm({
@@ -85,6 +88,10 @@ export default function ProfilePage() {
           diet_prefs: joinList(profile.diet_prefs),
         });
       } catch (err) {
+        if (err instanceof ApiError && err.statusCode === 401) {
+          router.push("/");
+          return;
+        }
         setError(err instanceof Error ? err.message : "Failed to load profile");
       } finally {
         setProfileLoading(false);
@@ -92,7 +99,7 @@ export default function ProfilePage() {
     };
 
     loadProfile();
-  }, [loading, isGuest]);
+  }, [loading, isGuest, router]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -102,11 +109,16 @@ export default function ProfilePage() {
 
     try {
       const token = await getAccessToken();
-      const res = await fetch(`${API_URL}/profile`, {
+      if (!token) {
+        router.push("/");
+        return;
+      }
+
+      await apiFetch<HealthProfile>("/profile", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           age: parseOptionalNumber(form.age),
@@ -120,11 +132,12 @@ export default function ProfilePage() {
         }),
       });
 
-      const data = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(data?.message || "Failed to save profile");
-
       setMessage("Profile saved. Future symptom checks can use this context.");
     } catch (err) {
+      if (err instanceof ApiError && err.statusCode === 401) {
+        router.push("/");
+        return;
+      }
       setError(err instanceof Error ? err.message : "Failed to save profile");
     } finally {
       setSaving(false);
@@ -236,9 +249,7 @@ export default function ProfilePage() {
             </div>
           )}
           {error && (
-            <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-              {error}
-            </div>
+            <ErrorState message={error} />
           )}
 
           <button

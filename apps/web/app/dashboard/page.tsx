@@ -3,9 +3,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { EmptyState } from "@/components/EmptyState";
+import { ErrorState } from "@/components/ErrorState";
 import { TriageBadge } from "@/components/TriageBadge";
 import { useUser } from "@/hooks/useUser";
-import { API_URL } from "@/lib/api";
+import { ApiError, apiFetch } from "@/lib/api";
 import { createClient } from "@/lib/supabase/client";
 
 interface SessionSummary {
@@ -129,29 +131,37 @@ export default function DashboardPage() {
 
     try {
       const token = await getAccessToken();
-      const res = await fetch(
-        `${API_URL}/symptom-sessions?page=${sessionPage}&limit=${SESSION_PAGE_LIMIT}`,
+      if (!token) {
+        router.push("/");
+        return;
+      }
+
+      const data = await apiFetch<PaginatedSessions>(
+        `/symptom-sessions?page=${sessionPage}&limit=${SESSION_PAGE_LIMIT}`,
         {
           headers: {
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            Authorization: `Bearer ${token}`,
           },
         },
       );
 
-      if (!res.ok) throw new Error("Failed to load recent sessions");
-
-      const data = (await res.json()) as PaginatedSessions;
-      setSessions(data.data);
-      setSessionTotal(data.total);
-      setSessionTotalPages(data.totalPages);
+      setSessions(Array.isArray(data?.data) ? data.data : []);
+      setSessionTotal(Number.isFinite(data?.total) ? data.total : 0);
+      setSessionTotalPages(
+        Number.isFinite(data?.totalPages) ? data.totalPages : 1,
+      );
     } catch (error) {
+      if (error instanceof ApiError && error.statusCode === 401) {
+        router.push("/");
+        return;
+      }
       setSessionsError(
         error instanceof Error ? error.message : "Failed to load sessions",
       );
     } finally {
       setSessionsLoading(false);
     }
-  }, [loading, isGuest, sessionPage]);
+  }, [loading, isGuest, router, sessionPage]);
 
   const loadUsage = useCallback(async () => {
     if (loading || isGuest) return;
@@ -160,15 +170,14 @@ export default function DashboardPage() {
 
     try {
       const token = await getAccessToken();
-      const res = await fetch(`${API_URL}/usage/today`, {
+      if (!token) return;
+
+      const data = await apiFetch<TodayUsage>("/usage/today", {
         headers: {
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          Authorization: `Bearer ${token}`,
         },
       });
 
-      if (!res.ok) throw new Error("Failed to load usage");
-
-      const data = (await res.json()) as TodayUsage;
       setUsage(data);
     } catch (error) {
       setUsageError(error instanceof Error ? error.message : "Usage unavailable");
@@ -180,15 +189,14 @@ export default function DashboardPage() {
 
     try {
       const token = await getAccessToken();
-      const res = await fetch(`${API_URL}/profile/status`, {
+      if (!token) return;
+
+      const data = await apiFetch<ProfileStatus>("/profile/status", {
         headers: {
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          Authorization: `Bearer ${token}`,
         },
       });
 
-      if (!res.ok) return;
-
-      const data = (await res.json()) as ProfileStatus;
       setProfileStatus(data);
     } catch {
       setProfileStatus(null);
@@ -214,19 +222,23 @@ export default function DashboardPage() {
 
       try {
         const token = await getAccessToken();
-        const res = await fetch(`${API_URL}/symptom-sessions/${sessionId}`, {
+        if (!token) {
+          router.push("/");
+          return;
+        }
+
+        await apiFetch<{ success: boolean }>(`/symptom-sessions/${sessionId}`, {
           method: "DELETE",
           headers: {
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            Authorization: `Bearer ${token}`,
           },
         });
 
-        const data = await res.json().catch(() => null);
-        if (!res.ok) {
-          throw new Error(data?.message || "Failed to delete session");
-        }
-
         setSessionFeedback("Session deleted.");
+        setSessions((current) =>
+          current.filter((session) => session.id !== sessionId),
+        );
+        setSessionTotal((current) => Math.max(0, current - 1));
 
         if (sessions.length === 1 && sessionPage > 1) {
           setSessionPage((current) => current - 1);
@@ -234,6 +246,10 @@ export default function DashboardPage() {
           await loadSessions();
         }
       } catch (error) {
+        if (error instanceof ApiError && error.statusCode === 401) {
+          router.push("/");
+          return;
+        }
         setSessionsError(
           error instanceof Error ? error.message : "Failed to delete session",
         );
@@ -241,7 +257,7 @@ export default function DashboardPage() {
         setDeletingSessionId(null);
       }
     },
-    [loadSessions, sessionPage, sessions.length],
+    [loadSessions, router, sessionPage, sessions.length],
   );
 
   // Show spinner while auth is resolving
@@ -375,29 +391,32 @@ export default function DashboardPage() {
         {sessionsLoading ? (
           <p className="text-gray-400 text-sm">Loading recent sessions...</p>
         ) : sessionsError ? (
-          <div className="space-y-3">
-            <p className="text-red-500 text-sm">{sessionsError}</p>
-            <button
-              onClick={loadSessions}
-              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition"
-            >
-              Retry
-            </button>
-          </div>
+          <ErrorState
+            message={sessionsError}
+            action={
+              <button
+                onClick={loadSessions}
+                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition"
+              >
+                Retry
+              </button>
+            }
+          />
         ) : sessionTotal === 0 ? (
-          <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-6 text-center">
-            <p className="text-sm text-gray-500">
-              No sessions yet. Your completed symptom checks will show up here.
-            </p>
-            {!isAtSymptomLimit && (
+          <EmptyState
+            title="No sessions yet"
+            description="Your completed symptom checks will show up here."
+            action={
+              !isAtSymptomLimit && (
               <Link
                 href="/symptom-check"
-                className="mt-4 inline-flex rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
+                className="inline-flex rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
               >
                 Start your first symptom check
               </Link>
-            )}
-          </div>
+              )
+            }
+          />
         ) : (
           <>
             <div className="mb-4 space-y-3">
@@ -443,21 +462,22 @@ export default function DashboardPage() {
 
             {visibleSessions.length === 0 ? (
               <>
-                <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-6 text-center">
-                  <p className="text-sm text-gray-500">
-                    No sessions match your search or filters on this page.
-                  </p>
+                <EmptyState
+                  title="No matching sessions"
+                  description="No sessions match your search or filters on this page."
+                  action={
                   <button
                     type="button"
                     onClick={() => {
                       setSessionSearch("");
                       setTriageFilter("all");
                     }}
-                    className="mt-4 rounded-lg bg-white px-4 py-2 text-sm font-medium text-gray-700 ring-1 ring-gray-200 transition hover:text-blue-700 hover:ring-blue-200"
+                    className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-gray-700 ring-1 ring-gray-200 transition hover:text-blue-700 hover:ring-blue-200"
                   >
                     Clear filters
                   </button>
-                </div>
+                  }
+                />
                 <PaginationControls
                   page={sessionPage}
                   totalPages={sessionTotalPages}

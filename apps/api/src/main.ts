@@ -2,11 +2,13 @@ import * as dotenv from 'dotenv';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import type { NextFunction, Request, Response } from 'express';
+import { ApiExceptionFilter } from './security/api-exception.filter';
 
 dotenv.config();
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  app.useGlobalFilters(new ApiExceptionFilter());
   app.use(applySecurityHeaders);
   app.use(logRequestSummary);
   const allowedOrigins = getAllowedOrigins();

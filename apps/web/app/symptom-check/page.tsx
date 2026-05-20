@@ -1,8 +1,9 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ErrorState } from "@/components/ErrorState";
 import { MedicalDisclaimer } from "@/components/MedicalDisclaimer";
-import { API_URL } from "@/lib/api";
+import { apiFetch } from "@/lib/api";
 import { createClient } from "@/lib/supabase/client";
 
 // Types matching backend
@@ -66,6 +67,7 @@ export default function SymptomChecker() {
   const [step, setStep] = useState<Step>("body-area");
   const [bodyAreas, setBodyAreas] = useState<BodyArea[]>([]);
   const [bodyAreasError, setBodyAreasError] = useState<string | null>(null);
+  const [flowError, setFlowError] = useState<string | null>(null);
   const [symptoms, setSymptoms] = useState<SymptomCategory[]>([]);
   const [questions, setQuestions] = useState<SymptomQuestion[]>([]);
 
@@ -99,12 +101,9 @@ export default function SymptomChecker() {
   const loadBodyAreas = useCallback(async () => {
     setBodyAreasError(null);
     try {
-      const res = await fetch(`${API_URL}/symptom-sessions/body-areas`);
-      if (!res.ok) throw new Error("Failed to load body areas");
-      const data = await res.json().catch(() => []);
+      const data = await apiFetch<BodyArea[]>("/symptom-sessions/body-areas");
       setBodyAreas(Array.isArray(data) ? data : []);
     } catch (error) {
-      console.error(error);
       setBodyAreasError(
         error instanceof Error ? error.message : "Failed to load body areas",
       );
@@ -125,13 +124,10 @@ export default function SymptomChecker() {
       if (!session?.access_token) return;
       setIsLoggedIn(true);
 
-      const res = await fetch(`${API_URL}/profile`, {
+      const profile = await apiFetch<SavedHealthProfile | null>("/profile", {
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
 
-      if (!res.ok) return;
-
-      const profile = (await res.json()) as SavedHealthProfile | null;
       setHasSavedProfile(!!profile);
       if (!profile) return;
 
@@ -147,7 +143,7 @@ export default function SymptomChecker() {
       });
     };
 
-    loadSavedProfile().catch(console.error);
+    loadSavedProfile().catch(() => setHasSavedProfile(false));
   }, []);
 
   const updateHealthProfile = (
@@ -162,16 +158,17 @@ export default function SymptomChecker() {
   const handleBodyAreaSelect = async (area: BodyArea) => {
     setSelectedBodyArea(area);
     setLoading(true);
+    setFlowError(null);
     try {
-      const res = await fetch(
-        `${API_URL}/symptom-sessions/symptom-categories/${area.id}`,
+      const data = await apiFetch<SymptomCategory[]>(
+        `/symptom-sessions/symptom-categories/${area.id}`,
       );
-      const data = await res.json().catch(() => []);
       setSymptoms(Array.isArray(data) ? data : []);
       setStep("symptom");
     } catch (error) {
-      console.error(error);
-      alert("Failed to load symptoms");
+      setFlowError(
+        error instanceof Error ? error.message : "Failed to load symptoms",
+      );
     } finally {
       setLoading(false);
     }
@@ -181,16 +178,17 @@ export default function SymptomChecker() {
   const handleSymptomSelect = async (symptom: SymptomCategory) => {
     setSelectedSymptom(symptom);
     setLoading(true);
+    setFlowError(null);
     try {
-      const res = await fetch(
-        `${API_URL}/symptom-sessions/symptom-questions/${symptom.id}`,
+      const data = await apiFetch<SymptomQuestion[]>(
+        `/symptom-sessions/symptom-questions/${symptom.id}`,
       );
-      const data = await res.json().catch(() => []);
       setQuestions(Array.isArray(data) ? data : []);
       setStep("questions");
     } catch (error) {
-      console.error(error);
-      alert("Failed to load questions");
+      setFlowError(
+        error instanceof Error ? error.message : "Failed to load questions",
+      );
     } finally {
       setLoading(false);
     }
@@ -211,6 +209,7 @@ export default function SymptomChecker() {
     if (!selectedBodyArea || !selectedSymptom) return;
 
     setLoading(true);
+    setFlowError(null);
     try {
       // 1. Get the current user's session token
       const supabase = createClient();
@@ -250,7 +249,7 @@ export default function SymptomChecker() {
       };
 
       if (saveToProfile && session?.access_token) {
-        const profileRes = await fetch(`${API_URL}/profile`, {
+        await apiFetch("/profile", {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
@@ -264,15 +263,13 @@ export default function SymptomChecker() {
             weight_kg: profilePayload.weight_kg ?? null,
           }),
         });
-
-        const profileData = await profileRes.json().catch(() => null);
-        if (!profileRes.ok) {
-          throw new Error(profileData?.message || "Failed to save profile");
-        }
       }
 
       // 3. Send request with headers
-      const res = await fetch(`${API_URL}/symptom-sessions/analyze`, {
+      const data = await apiFetch<{
+        sessionId?: string;
+        triage?: TriageResult;
+      }>("/symptom-sessions/analyze", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -290,8 +287,7 @@ export default function SymptomChecker() {
         }),
       });
 
-      const data = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(data?.message || "Failed to analyze symptoms");
+      if (!data?.triage) throw new Error("No triage result was returned");
 
       if (session?.access_token && data.sessionId) {
         router.push(`/sessions/${data.sessionId}`);
@@ -301,8 +297,9 @@ export default function SymptomChecker() {
       setResult(data.triage);
       setStep("results");
     } catch (error) {
-      console.error(error);
-      alert(error instanceof Error ? error.message : "Failed to analyze symptoms");
+      setFlowError(
+        error instanceof Error ? error.message : "Failed to analyze symptoms",
+      );
     } finally {
       setLoading(false);
     }
@@ -412,6 +409,12 @@ export default function SymptomChecker() {
 
         {/* Step Content */}
         <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8">
+          {flowError && (
+            <div className="mb-6">
+              <ErrorState message={flowError} />
+            </div>
+          )}
+
           {loading && (
             <div className="text-center py-12">
               <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
