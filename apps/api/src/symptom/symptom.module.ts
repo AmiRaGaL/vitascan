@@ -5,8 +5,10 @@ import { SupabaseService } from '../supabase/supabase.service';
 import { GroqService } from './groq.service';
 import { RedFlagsService } from './red-flags.service';
 import { OptionalAuthGuard } from '../auth/optional-auth.guard';
+import { KnowledgeBaseModule } from '../kb/knowledge-base.module';
 
 @Module({
+  imports: [KnowledgeBaseModule],
   controllers: [SymptomController],
   providers: [SupabaseService, GroqService, RedFlagsService, OptionalAuthGuard],
   exports: [GroqService],

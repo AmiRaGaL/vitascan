@@ -15,6 +15,10 @@ import { SupabaseService } from '../supabase/supabase.service';
 import { GroqService } from './groq.service';
 import { OptionalAuthGuard } from '../auth/optional-auth.guard';
 import { RedFlagsService } from './red-flags.service';
+import {
+  KnowledgeBaseChunk,
+  KnowledgeBaseService,
+} from '../kb/knowledge-base.service';
 import type {
   BodyArea,
   SymptomCategory,
@@ -36,6 +40,7 @@ export class SymptomController {
     private readonly supabase: SupabaseService,
     private readonly groq: GroqService,
     private readonly redFlags: RedFlagsService,
+    private readonly knowledgeBase: KnowledgeBaseService,
   ) {}
 
   @Get('body-areas')
@@ -184,8 +189,16 @@ export class SymptomController {
 
     await this.enforceSymptomLimit(req);
 
+    const referenceChunks = await this.knowledgeBase.retrieveRelevantChunks(
+      this.buildSymptomKbQuery(body),
+      5,
+    );
+
     // 1. Get AI response
-    let triageResult = await this.groq.analyzeStructuredSymptoms(body);
+    let triageResult = await this.groq.analyzeStructuredSymptoms(
+      body,
+      referenceChunks,
+    );
 
     // 2. Apply Rule-Based Overrides
     const flagEvaluation = this.redFlags.evaluate(body);
@@ -233,7 +246,37 @@ export class SymptomController {
         );
     }
 
-    return { sessionId: data.id, triage: triageResult };
+    return {
+      sessionId: data.id,
+      triage: triageResult,
+      references: this.formatReferenceSummary(referenceChunks),
+    };
+  }
+
+  private buildSymptomKbQuery(body: StructuredSymptomRequest): string {
+    const answersText = body.answers
+      .map((answer) => {
+        const value = Array.isArray(answer.answer)
+          ? answer.answer.join(', ')
+          : answer.answer;
+        return `${answer.question_text}: ${value}`;
+      })
+      .join('\n');
+
+    return [
+      `Body area: ${body.body_area_name}`,
+      `Symptom: ${body.symptom_name}`,
+      `Answers: ${answersText || 'None'}`,
+      `Health profile: ${JSON.stringify(body.health_profile ?? null)}`,
+    ].join('\n');
+  }
+
+  private formatReferenceSummary(chunks: KnowledgeBaseChunk[]) {
+    return chunks.map((chunk) => ({
+      title: chunk.title,
+      source: chunk.source,
+      metadata: chunk.metadata,
+    }));
   }
 
   private async enforceSymptomLimit(req: any) {

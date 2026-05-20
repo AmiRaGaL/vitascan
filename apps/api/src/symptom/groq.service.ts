@@ -18,6 +18,12 @@ interface FollowUpChatMessage {
   content: string;
 }
 
+interface TrustedReference {
+  chunk_text: string;
+  title: string;
+  source: string;
+}
+
 @Injectable()
 export class GroqService {
   private groq: Groq;
@@ -28,7 +34,10 @@ export class GroqService {
     });
   }
 
- async analyzeStructuredSymptoms(data: StructuredSymptomRequest): Promise<TriageResult> {
+ async analyzeStructuredSymptoms(
+  data: StructuredSymptomRequest,
+  references: TrustedReference[] = [],
+): Promise<TriageResult> {
   const answersText = data.answers.length > 0
     ? data.answers.map(a => 
         `- ${a.question_text}: ${Array.isArray(a.answer) ? a.answer.join(', ') : a.answer}`
@@ -49,6 +58,8 @@ CURRENT MEDICATIONS: ${formatList(data.health_profile.medications)}
 KNOWN ALLERGIES: ${formatList(data.health_profile.allergies)}
 DIET PREFERENCES: ${formatList(data.health_profile.diet_prefs)}` : 'Health profile not provided';
 
+  const referenceContext = this.formatTrustedReferences(references);
+
   const prompt = `You are a medical triage AI assistant. Analyze this structured symptom data and provide triage recommendations.
 
 BODY AREA: ${data.body_area_name}
@@ -58,6 +69,9 @@ SYMPTOM DETAILS:
 ${answersText}
 
 HEALTH PROFILE:${healthProfileText}
+
+TRUSTED REFERENCE CONTEXT:
+${referenceContext}
 
 OUTPUT FORMAT: Return ONLY a valid JSON object. Do not include any markdown formatting, code blocks, or explanations.
 
@@ -76,6 +90,9 @@ TRIAGE RULES:
 - "urgent_care": moderate symptoms lasting >24h, persistent fever, moderate pain  
 - "pcp": mild symptoms, chronic issues, routine concerns
 - "home": very mild symptoms, common colds, minor aches
+- Use the trusted reference context for educational grounding when relevant.
+- Do not invent facts beyond the symptom data, triage rules, and trusted reference context.
+- Do not diagnose, prescribe medication, or provide medication dosing.
 
 Return ONLY the JSON object, nothing else.`;
 
@@ -169,6 +186,7 @@ Return ONLY the JSON object.`;
 async generateFollowUpChatResponse(data: {
   session: FollowUpChatSession;
   messages: FollowUpChatMessage[];
+  references?: TrustedReference[];
 }): Promise<string> {
   const history = data.messages
     .slice(-12)
@@ -177,6 +195,7 @@ async generateFollowUpChatResponse(data: {
       return `${role}: ${message.content}`;
     })
     .join('\n');
+  const referenceContext = this.formatTrustedReferences(data.references ?? []);
 
   const prompt = `You are VitaScan's post-triage follow-up assistant.
 
@@ -185,6 +204,8 @@ You help the user understand and act on their saved triage guidance. You are not
 SAFETY RULES:
 - Do not diagnose, prescribe medication, change dosages, or tell the user to start/stop treatment.
 - Keep answers educational, practical, and brief.
+- Ground medical education in the trusted reference context when it is relevant.
+- Do not invent medical facts beyond the saved session, chat history, safety rules, and trusted reference context.
 - Encourage a licensed clinician for medical decisions.
 - If the user describes emergency warning signs, or the saved session had red flags, clearly tell them to seek emergency care now or call local emergency services.
 - Do not minimize chest pain, trouble breathing, stroke symptoms, severe allergic reactions, fainting, severe bleeding, or sudden severe pain.
@@ -198,6 +219,9 @@ Red flags detected: ${data.session.red_flags_detected ? 'Yes' : 'No'}
 Summary: ${data.session.summary ?? 'Not provided'}
 User answers JSON: ${JSON.stringify(data.session.user_answers ?? null)}
 Health profile JSON: ${JSON.stringify(data.session.health_profile_snapshot ?? null)}
+
+TRUSTED REFERENCE CONTEXT:
+${referenceContext}
 
 CHAT HISTORY:
 ${history}
@@ -215,5 +239,19 @@ Reply to the latest user message.`;
     completion.choices[0].message.content?.trim() ||
     'I could not generate a follow-up response. Please consult a healthcare professional for medical guidance.'
   );
+}
+
+private formatTrustedReferences(references: TrustedReference[]): string {
+  if (references.length === 0) {
+    return 'No retrieved reference context available. Use only the provided symptom details and safety rules.';
+  }
+
+  return references
+    .slice(0, 5)
+    .map(
+      (reference, index) =>
+        `[${index + 1}] ${reference.title} (${reference.source})\n${reference.chunk_text}`,
+    )
+    .join('\n\n');
 }
 }

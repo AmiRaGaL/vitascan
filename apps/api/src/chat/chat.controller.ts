@@ -10,6 +10,10 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { OptionalAuthGuard } from '../auth/optional-auth.guard';
+import {
+  KnowledgeBaseChunk,
+  KnowledgeBaseService,
+} from '../kb/knowledge-base.service';
 import { GroqService } from '../symptom/groq.service';
 import { SupabaseService } from '../supabase/supabase.service';
 
@@ -60,6 +64,7 @@ export class ChatController {
   constructor(
     private readonly supabase: SupabaseService,
     private readonly groq: GroqService,
+    private readonly knowledgeBase: KnowledgeBaseService,
   ) {}
 
   @Post('threads')
@@ -151,9 +156,15 @@ export class ChatController {
 
     if (historyError) this.throwSupabaseError(historyError.message);
 
+    const referenceChunks = await this.knowledgeBase.retrieveRelevantChunks(
+      this.buildChatKbQuery(content, session),
+      5,
+    );
+
     const aiContent = await this.groq.generateFollowUpChatResponse({
       session,
       messages: history ?? [],
+      references: referenceChunks,
     });
 
     const { data: assistantMessage, error: assistantMessageError } =
@@ -176,7 +187,28 @@ export class ChatController {
       userMessage,
       message: assistantMessage,
       limit: chatLimit,
+      references: this.formatReferenceSummary(referenceChunks),
     };
+  }
+
+  private buildChatKbQuery(
+    userMessage: string,
+    session: SymptomSessionContext,
+  ): string {
+    return [
+      `User message: ${userMessage}`,
+      `Saved concern: ${session.initial_input ?? 'Not provided'}`,
+      `Triage level: ${session.triage_level ?? 'Not provided'}`,
+      `Summary: ${session.summary ?? 'Not provided'}`,
+    ].join('\n');
+  }
+
+  private formatReferenceSummary(chunks: KnowledgeBaseChunk[]) {
+    return chunks.map((chunk) => ({
+      title: chunk.title,
+      source: chunk.source,
+      metadata: chunk.metadata,
+    }));
   }
 
   private async getOwnedThread(id: string, userId: string): Promise<ChatThread> {
