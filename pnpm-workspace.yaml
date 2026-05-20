@@ -3,3 +3,8 @@ packages:
   - packages/*
 
 nodeLinker: hoisted
+
+allowBuilds:
+  '@nestjs/core': true
+  sharp: true
+  unrs-resolver: true
