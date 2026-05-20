@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useUser } from "@/hooks/useUser";
 import { createClient } from "@/lib/supabase/client";
 
@@ -47,6 +47,8 @@ export default function SessionDetailsPage() {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [recipesLoading, setRecipesLoading] = useState(true);
   const [recipesError, setRecipesError] = useState<string | null>(null);
+  const [chatOpening, setChatOpening] = useState(false);
+  const [chatError, setChatError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && isGuest) router.push("/");
@@ -139,6 +141,44 @@ export default function SessionDetailsPage() {
     loadSessionAndRecipes();
   }, [loading, isGuest, id]);
 
+  const openChat = useCallback(async () => {
+    if (!id) return;
+
+    setChatOpening(true);
+    setChatError(null);
+
+    try {
+      const supabase = createClient();
+      const {
+        data: { session: authSession },
+      } = await supabase.auth.getSession();
+
+      const res = await fetch(`${API_URL}/chat/threads`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(authSession?.access_token
+            ? { Authorization: `Bearer ${authSession.access_token}` }
+            : {}),
+        },
+        body: JSON.stringify({ symptom_session_id: id }),
+      });
+
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(data?.message || "Failed to open follow-up chat");
+      }
+
+      router.push(`/sessions/${id}/chat`);
+    } catch (err) {
+      setChatError(
+        err instanceof Error ? err.message : "Failed to open follow-up chat",
+      );
+    } finally {
+      setChatOpening(false);
+    }
+  }, [id, router]);
+
   if (loading || sessionLoading) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-64px)]">
@@ -183,6 +223,18 @@ export default function SessionDetailsPage() {
           <span className="shrink-0 rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
             {session.triage_level?.replace(/_/g, " ") || "Pending"}
           </span>
+        </div>
+
+        <div className="mb-6">
+          <button
+            type="button"
+            onClick={openChat}
+            disabled={chatOpening}
+            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+          >
+            {chatOpening ? "Opening chat..." : "Ask follow-up questions"}
+          </button>
+          {chatError && <p className="mt-2 text-sm text-red-500">{chatError}</p>}
         </div>
 
         {error && <p className="mb-4 text-sm text-red-500">{error}</p>}

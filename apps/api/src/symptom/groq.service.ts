@@ -2,6 +2,22 @@ import { Injectable } from '@nestjs/common';
 import Groq from 'groq-sdk';
 import type { StructuredSymptomRequest, TriageResult } from '@vitascan/shared';
 
+interface FollowUpChatSession {
+  initial_input: string | null;
+  triage_level: string | null;
+  specialty_suggestion: string | null;
+  red_flags_detected: boolean;
+  summary: string | null;
+  user_answers: unknown;
+  health_profile_snapshot: unknown;
+  created_at: string;
+}
+
+interface FollowUpChatMessage {
+  sender: string;
+  content: string;
+}
+
 @Injectable()
 export class GroqService {
   private groq: Groq;
@@ -148,5 +164,56 @@ Return ONLY the JSON object.`;
   if (jsonMatch) content = jsonMatch[0];
 
   return JSON.parse(content);
+}
+
+async generateFollowUpChatResponse(data: {
+  session: FollowUpChatSession;
+  messages: FollowUpChatMessage[];
+}): Promise<string> {
+  const history = data.messages
+    .slice(-12)
+    .map((message) => {
+      const role = message.sender === 'assistant' ? 'Assistant' : 'User';
+      return `${role}: ${message.content}`;
+    })
+    .join('\n');
+
+  const prompt = `You are VitaScan's post-triage follow-up assistant.
+
+You help the user understand and act on their saved triage guidance. You are not a doctor.
+
+SAFETY RULES:
+- Do not diagnose, prescribe medication, change dosages, or tell the user to start/stop treatment.
+- Keep answers educational, practical, and brief.
+- Encourage a licensed clinician for medical decisions.
+- If the user describes emergency warning signs, or the saved session had red flags, clearly tell them to seek emergency care now or call local emergency services.
+- Do not minimize chest pain, trouble breathing, stroke symptoms, severe allergic reactions, fainting, severe bleeding, or sudden severe pain.
+
+SAVED TRIAGE SESSION:
+Date: ${data.session.created_at}
+Concern: ${data.session.initial_input ?? 'Not provided'}
+Triage level: ${data.session.triage_level ?? 'Not provided'}
+Suggested specialty: ${data.session.specialty_suggestion ?? 'Not provided'}
+Red flags detected: ${data.session.red_flags_detected ? 'Yes' : 'No'}
+Summary: ${data.session.summary ?? 'Not provided'}
+User answers JSON: ${JSON.stringify(data.session.user_answers ?? null)}
+Health profile JSON: ${JSON.stringify(data.session.health_profile_snapshot ?? null)}
+
+CHAT HISTORY:
+${history}
+
+Reply to the latest user message.`;
+
+  const completion = await this.groq.chat.completions.create({
+    model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+    messages: [{ role: 'user', content: prompt }],
+    temperature: 0.2,
+    max_tokens: 500,
+  });
+
+  return (
+    completion.choices[0].message.content?.trim() ||
+    'I could not generate a follow-up response. Please consult a healthcare professional for medical guidance.'
+  );
 }
 }

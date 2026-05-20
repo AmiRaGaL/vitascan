@@ -6,6 +6,7 @@ import { SymptomModule } from './symptom/symptom.module';
 import { ProfileModule } from './profile/profile.module';
 import { UsageModule } from './usage/usage.module';
 import { RecipesModule } from './recipes/recipes.module';
+import { ChatModule } from './chat/chat.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { RecipesModule } from './recipes/recipes.module';
     ProfileModule,
     UsageModule,
     RecipesModule,
+    ChatModule,
   ],
   controllers: [AppController],
   providers: [AppService],
