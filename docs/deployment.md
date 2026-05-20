@@ -1,18 +1,20 @@
 # VitaScan MVP Deployment
 
+Use this checklist to deploy the existing web/API MVP for a live demo. Mobile is out of scope for this deployment.
+
 ## 1. Supabase
 
 1. Create or select a Supabase project.
-2. Run the SQL files in `supabase/migrations` in filename order.
-3. Confirm auth is enabled and note:
-   - `SUPABASE_URL`
-   - `SUPABASE_SERVICE_ROLE_KEY`
-   - `SUPABASE_JWT_SECRET`
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+2. Run SQL migrations in filename order from `supabase/migrations`.
+3. In Supabase Auth, enable Google OAuth.
+4. Add deployed redirect URLs:
+   - `https://YOUR_VERCEL_DOMAIN/auth/callback`
+   - `http://localhost:3000/auth/callback` for local development
+5. Add the deployed web URL to the Supabase site URL if this is the primary production app.
 
 ## 2. Render API
 
-Use the `apps/api` package as the API service.
+Use `apps/api` as the API service root.
 
 Build command:
 
@@ -34,12 +36,21 @@ SUPABASE_URL=
 SUPABASE_SERVICE_ROLE_KEY=
 SUPABASE_JWT_SECRET=
 GROQ_API_KEY=
+EMBEDDING_MODEL=
+WEB_ORIGIN=
 PORT=
 NODE_ENV=
-WEB_ORIGIN=
 ```
 
-Set `WEB_ORIGIN` to the deployed web URL. For multiple origins, use a comma-separated list.
+Set `WEB_ORIGIN` to the deployed Vercel URL, for example `https://YOUR_VERCEL_DOMAIN`. For multiple allowed web origins, use a comma-separated list. The API also keeps localhost CORS fallbacks for development.
+
+Confirm the deployed health endpoint works:
+
+```sh
+https://YOUR_RENDER_API_URL/health
+```
+
+The response should include status, timestamp, Supabase connection state, and app metadata only. It should not expose secrets.
 
 ## 3. Vercel Web
 
@@ -53,14 +64,19 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 NEXT_PUBLIC_API_URL=
 ```
 
-Set `NEXT_PUBLIC_API_URL` to the deployed Render API URL.
+Set `NEXT_PUBLIC_API_URL` to the deployed Render API URL, without a trailing slash if possible.
 
-## 4. Smoke Test
+The app builds API calls from `NEXT_PUBLIC_API_URL`; do not hardcode localhost API URLs in deployed builds.
+
+## 4. Production Smoke Test
 
 1. Open the deployed web app.
-2. Sign in with Supabase auth.
-3. Complete or skip the health profile prompt.
-4. Run a symptom check and confirm a saved session appears on the dashboard.
-5. Open the saved session detail page.
-6. Test follow-up chat, print summary, copy summary, and delete.
-7. Check the API health endpoint at `/health`; it should return `status`, `timestamp`, Supabase connection status, and app metadata.
+2. Log in with Google.
+3. Save or update a health profile.
+4. Complete a symptom check.
+5. Confirm the saved session appears on the dashboard.
+6. Open the session detail page.
+7. Try recipes and chat if they are enabled in the deployed environment.
+8. Confirm usage limits show clear messages and do not crash the app.
+9. Run a red-flag scenario and confirm emergency warning guidance displays.
+10. Open the deployed API `/health` endpoint and confirm it returns a safe health response.
