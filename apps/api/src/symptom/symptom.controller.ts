@@ -113,6 +113,10 @@ export class SymptomController {
     @Body() body: StructuredSymptomRequest,
     @Req() req: any,
   ) {
+    const validationError = this.validateAnalyzePayload(body);
+    if (validationError)
+      throw new HttpException(validationError, HttpStatus.BAD_REQUEST);
+
     // 1. Get AI response
     let triageResult = await this.groq.analyzeStructuredSymptoms(body);
 
@@ -163,5 +167,40 @@ export class SymptomController {
     }
 
     return { sessionId: data.id, triage: triageResult };
+  }
+
+  private validateAnalyzePayload(
+    body: StructuredSymptomRequest,
+  ): string | null {
+    if (!body || typeof body !== 'object') return 'Symptom payload is required';
+    if (!body.body_area_id || typeof body.body_area_id !== 'string')
+      return 'body_area_id is required';
+    if (
+      !body.symptom_category_id ||
+      typeof body.symptom_category_id !== 'string'
+    )
+      return 'symptom_category_id is required';
+    if (!body.body_area_name || typeof body.body_area_name !== 'string')
+      return 'body_area_name is required';
+    if (!body.symptom_name || typeof body.symptom_name !== 'string')
+      return 'symptom_name is required';
+    if (!Array.isArray(body.answers)) return 'answers must be an array';
+
+    const invalidAnswer = body.answers.some(
+      (answer) =>
+        !answer ||
+        typeof answer.question_id !== 'string' ||
+        typeof answer.question_text !== 'string' ||
+        !(
+          typeof answer.answer === 'string' ||
+          (Array.isArray(answer.answer) &&
+            answer.answer.every((item) => typeof item === 'string'))
+        ),
+    );
+
+    if (invalidAnswer)
+      return 'answers must include question_id, question_text, and answer';
+
+    return null;
   }
 }

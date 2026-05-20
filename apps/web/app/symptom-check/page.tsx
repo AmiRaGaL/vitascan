@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 // Types matching backend
@@ -39,6 +40,17 @@ interface TriageResult {
   doctorVisitPreparationTips: string;
 }
 
+interface SavedHealthProfile {
+  age: number | null;
+  sex_at_birth: string | null;
+  height_cm: number | null;
+  weight_kg: number | null;
+  chronic_conditions: string[] | null;
+  medications: string[] | null;
+  allergies: string[] | null;
+  diet_prefs: string[] | null;
+}
+
 type Step =
   | "body-area"
   | "symptom"
@@ -49,6 +61,7 @@ type Step =
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
 export default function SymptomChecker() {
+  const router = useRouter();
   const [step, setStep] = useState<Step>("body-area");
   const [bodyAreas, setBodyAreas] = useState<BodyArea[]>([]);
   const [symptoms, setSymptoms] = useState<SymptomCategory[]>([]);
@@ -63,9 +76,12 @@ export default function SymptomChecker() {
   const [healthProfile, setHealthProfile] = useState({
     age: "",
     sex_at_birth: "",
+    height_cm: "",
+    weight_kg: "",
     chronic_conditions: "",
     medications: "",
     allergies: "",
+    diet_prefs: "",
   });
 
   const [result, setResult] = useState<TriageResult | null>(null);
@@ -77,6 +93,39 @@ export default function SymptomChecker() {
       .then((res) => res.json())
       .then(setBodyAreas)
       .catch(console.error);
+  }, []);
+
+  useEffect(() => {
+    const loadSavedProfile = async () => {
+      const supabase = createClient();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session?.access_token) return;
+
+      const res = await fetch(`${API_URL}/profile`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+
+      if (!res.ok) return;
+
+      const profile = (await res.json()) as SavedHealthProfile | null;
+      if (!profile) return;
+
+      setHealthProfile({
+        age: profile.age?.toString() ?? "",
+        sex_at_birth: profile.sex_at_birth ?? "",
+        height_cm: profile.height_cm?.toString() ?? "",
+        weight_kg: profile.weight_kg?.toString() ?? "",
+        chronic_conditions: joinList(profile.chronic_conditions),
+        medications: joinList(profile.medications),
+        allergies: joinList(profile.allergies),
+        diet_prefs: joinList(profile.diet_prefs),
+      });
+    };
+
+    loadSavedProfile().catch(console.error);
   }, []);
 
   // Fetch symptoms when body area selected
@@ -140,10 +189,10 @@ export default function SymptomChecker() {
       } = await supabase.auth.getSession();
 
       const userAnswers: UserAnswer[] = questions.map((q) => ({
-        // ... (keep your existing userAnswers logic)
         question_id: q.id,
         question_text: q.question_text,
-        answer: answers[q.id] || (q.question_type === "multiple_choice" ? [] : ""),
+        answer:
+          answers[q.id] || (q.question_type === "multiple_choice" ? [] : ""),
       }));
 
       const parseList = (value: string): string[] => {
@@ -169,14 +218,28 @@ export default function SymptomChecker() {
           health_profile: {
             age: healthProfile.age ? parseInt(healthProfile.age) : undefined,
             sex_at_birth: healthProfile.sex_at_birth || undefined,
+            height_cm: healthProfile.height_cm
+              ? parseInt(healthProfile.height_cm)
+              : undefined,
+            weight_kg: healthProfile.weight_kg
+              ? Number(healthProfile.weight_kg)
+              : undefined,
             chronic_conditions: parseList(healthProfile.chronic_conditions),
             medications: parseList(healthProfile.medications),
             allergies: parseList(healthProfile.allergies),
+            diet_prefs: parseList(healthProfile.diet_prefs),
           },
         }),
       });
 
       const data = await res.json();
+      if (!res.ok) throw new Error(data?.message || "Failed to analyze symptoms");
+
+      if (session?.access_token && data.sessionId) {
+        router.push(`/sessions/${data.sessionId}`);
+        return;
+      }
+
       setResult(data.triage);
       setStep("results");
     } catch (error) {
@@ -195,9 +258,12 @@ export default function SymptomChecker() {
     setHealthProfile({
       age: "",
       sex_at_birth: "",
+      height_cm: "",
+      weight_kg: "",
       chronic_conditions: "",
       medications: "",
       allergies: "",
+      diet_prefs: "",
     });
     setResult(null);
   };
@@ -494,6 +560,42 @@ export default function SymptomChecker() {
 
                 <div>
                   <label className="block font-medium text-gray-700 mb-2">
+                    Height (cm)
+                  </label>
+                  <input
+                    type="number"
+                    value={healthProfile.height_cm}
+                    onChange={(e) =>
+                      setHealthProfile({
+                        ...healthProfile,
+                        height_cm: e.target.value,
+                      })
+                    }
+                    className="w-full p-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 outline-none"
+                    placeholder="e.g., 170"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-medium text-gray-700 mb-2">
+                    Weight (kg)
+                  </label>
+                  <input
+                    type="number"
+                    value={healthProfile.weight_kg}
+                    onChange={(e) =>
+                      setHealthProfile({
+                        ...healthProfile,
+                        weight_kg: e.target.value,
+                      })
+                    }
+                    className="w-full p-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 outline-none"
+                    placeholder="e.g., 72"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-medium text-gray-700 mb-2">
                     Chronic Conditions
                   </label>
                   <input
@@ -543,6 +645,24 @@ export default function SymptomChecker() {
                     }
                     className="w-full p-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 outline-none"
                     placeholder="e.g., Penicillin, Peanuts (comma-separated, or leave blank if none)"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-medium text-gray-700 mb-2">
+                    Diet Preferences
+                  </label>
+                  <input
+                    type="text"
+                    value={healthProfile.diet_prefs}
+                    onChange={(e) =>
+                      setHealthProfile({
+                        ...healthProfile,
+                        diet_prefs: e.target.value,
+                      })
+                    }
+                    className="w-full p-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 outline-none"
+                    placeholder="e.g., Vegetarian, Low sodium (comma-separated, or leave blank if none)"
                   />
                 </div>
               </div>
@@ -657,4 +777,8 @@ export default function SymptomChecker() {
       </div>
     </main>
   );
+}
+
+function joinList(value: string[] | null) {
+  return value?.join(", ") ?? "";
 }

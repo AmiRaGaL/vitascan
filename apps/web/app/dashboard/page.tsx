@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useUser } from "@/hooks/useUser";
@@ -14,6 +14,11 @@ interface SessionSummary {
   created_at: string;
 }
 
+interface TodayUsage {
+  symptom_checks_used: number;
+  chats_used: number;
+}
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
 export default function DashboardPage() {
@@ -22,47 +27,66 @@ export default function DashboardPage() {
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [sessionsLoading, setSessionsLoading] = useState(true);
   const [sessionsError, setSessionsError] = useState<string | null>(null);
+  const [usage, setUsage] = useState<TodayUsage | null>(null);
+  const [usageError, setUsageError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && isGuest) router.push("/");
   }, [loading, isGuest, router]);
 
-  useEffect(() => {
+  const loadSessions = useCallback(async () => {
     if (loading || isGuest) return;
 
-    const loadSessions = async () => {
-      setSessionsLoading(true);
-      setSessionsError(null);
+    setSessionsLoading(true);
+    setSessionsError(null);
 
-      try {
-        const supabase = createClient();
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
+    try {
+      const token = await getAccessToken();
+      const res = await fetch(`${API_URL}/symptom-sessions`, {
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
 
-        const res = await fetch(`${API_URL}/symptom-sessions`, {
-          headers: {
-            ...(session?.access_token
-              ? { Authorization: `Bearer ${session.access_token}` }
-              : {}),
-          },
-        });
+      if (!res.ok) throw new Error("Failed to load recent sessions");
 
-        if (!res.ok) throw new Error("Failed to load recent sessions");
-
-        const data = (await res.json()) as SessionSummary[];
-        setSessions(data);
-      } catch (error) {
-        setSessionsError(
-          error instanceof Error ? error.message : "Failed to load sessions",
-        );
-      } finally {
-        setSessionsLoading(false);
-      }
-    };
-
-    loadSessions();
+      const data = (await res.json()) as SessionSummary[];
+      setSessions(data);
+    } catch (error) {
+      setSessionsError(
+        error instanceof Error ? error.message : "Failed to load sessions",
+      );
+    } finally {
+      setSessionsLoading(false);
+    }
   }, [loading, isGuest]);
+
+  const loadUsage = useCallback(async () => {
+    if (loading || isGuest) return;
+
+    setUsageError(null);
+
+    try {
+      const token = await getAccessToken();
+      const res = await fetch(`${API_URL}/usage/today`, {
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+
+      if (!res.ok) throw new Error("Failed to load usage");
+
+      const data = (await res.json()) as TodayUsage;
+      setUsage(data);
+    } catch (error) {
+      setUsageError(error instanceof Error ? error.message : "Usage unavailable");
+    }
+  }, [loading, isGuest]);
+
+  useEffect(() => {
+    loadSessions();
+    loadUsage();
+  }, [loadSessions, loadUsage]);
 
   // Show spinner while auth is resolving
   if (loading) {
@@ -104,6 +128,23 @@ export default function DashboardPage() {
           </p>
         </Link>
       </div>
+
+      <div className="bg-white border border-gray-200 rounded-2xl p-6 mb-6">
+        <h2 className="text-lg font-semibold text-gray-800 mb-2">
+          Today&apos;s Usage
+        </h2>
+        {usageError ? (
+          <p className="text-sm text-gray-400">{usageError}</p>
+        ) : (
+          <p className="text-gray-600">
+            Symptom checks used:{" "}
+            <span className="font-semibold text-gray-900">
+              {usage?.symptom_checks_used ?? 0}
+            </span>
+          </p>
+        )}
+      </div>
+
       <div className="bg-white border border-gray-200 rounded-2xl p-6">
         <h2 className="text-lg font-semibold text-gray-800 mb-4">
           Recent Sessions
@@ -111,7 +152,15 @@ export default function DashboardPage() {
         {sessionsLoading ? (
           <p className="text-gray-400 text-sm">Loading recent sessions...</p>
         ) : sessionsError ? (
-          <p className="text-red-500 text-sm">{sessionsError}</p>
+          <div className="space-y-3">
+            <p className="text-red-500 text-sm">{sessionsError}</p>
+            <button
+              onClick={loadSessions}
+              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition"
+            >
+              Retry
+            </button>
+          </div>
         ) : sessions.length === 0 ? (
           <p className="text-gray-400 text-sm">
             No sessions yet. Start your first symptom check!
@@ -151,4 +200,13 @@ export default function DashboardPage() {
       </button>
     </div>
   );
+}
+
+async function getAccessToken() {
+  const supabase = createClient();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  return session?.access_token ?? null;
 }

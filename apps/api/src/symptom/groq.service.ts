@@ -26,9 +26,12 @@ export class GroqService {
   const healthProfileText = data.health_profile ? `
 AGE: ${data.health_profile.age || 'Not provided'}
 SEX: ${data.health_profile.sex_at_birth || 'Not provided'}
+HEIGHT CM: ${data.health_profile.height_cm || 'Not provided'}
+WEIGHT KG: ${data.health_profile.weight_kg || 'Not provided'}
 CHRONIC CONDITIONS: ${formatList(data.health_profile.chronic_conditions)}
 CURRENT MEDICATIONS: ${formatList(data.health_profile.medications)}
-KNOWN ALLERGIES: ${formatList(data.health_profile.allergies)}` : 'Health profile not provided';
+KNOWN ALLERGIES: ${formatList(data.health_profile.allergies)}
+DIET PREFERENCES: ${formatList(data.health_profile.diet_prefs)}` : 'Health profile not provided';
 
   const prompt = `You are a medical triage AI assistant. Analyze this structured symptom data and provide triage recommendations.
 

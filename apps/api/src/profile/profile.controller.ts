@@ -22,6 +22,8 @@ interface HealthProfileBody {
   diet_prefs?: string[];
 }
 
+const VALID_SEX_AT_BIRTH = new Set(['male', 'female', 'other']);
+
 @Controller('profile')
 @UseGuards(OptionalAuthGuard)
 export class ProfileController {
@@ -49,6 +51,10 @@ export class ProfileController {
     if (!req.user?.id)
       throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
 
+    const validationError = this.validateProfile(body);
+    if (validationError)
+      throw new HttpException(validationError, HttpStatus.BAD_REQUEST);
+
     const profile = {
       user_id: req.user.id,
       age: body.age ?? null,
@@ -72,5 +78,52 @@ export class ProfileController {
       throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
 
     return data;
+  }
+
+  private validateProfile(body: HealthProfileBody): string | null {
+    if (!body || typeof body !== 'object') return 'Profile body is required';
+
+    const numberFields: Array<[keyof HealthProfileBody, number, number]> = [
+      ['age', 0, 130],
+      ['height_cm', 30, 275],
+      ['weight_kg', 1, 700],
+    ];
+
+    for (const [field, min, max] of numberFields) {
+      const value = body[field];
+      if (value === undefined || value === null) continue;
+      if (typeof value !== 'number' || !Number.isFinite(value))
+        return `${field} must be a number`;
+      if (value < min || value > max)
+        return `${field} must be between ${min} and ${max}`;
+    }
+
+    if (
+      body.sex_at_birth &&
+      (typeof body.sex_at_birth !== 'string' ||
+        !VALID_SEX_AT_BIRTH.has(body.sex_at_birth))
+    ) {
+      return 'sex_at_birth must be male, female, or other';
+    }
+
+    const arrayFields: Array<keyof HealthProfileBody> = [
+      'chronic_conditions',
+      'medications',
+      'allergies',
+      'diet_prefs',
+    ];
+
+    for (const field of arrayFields) {
+      const value = body[field];
+      if (value === undefined) continue;
+      if (
+        !Array.isArray(value) ||
+        value.some((item) => typeof item !== 'string')
+      ) {
+        return `${field} must be an array of strings`;
+      }
+    }
+
+    return null;
   }
 }

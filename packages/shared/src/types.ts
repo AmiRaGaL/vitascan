@@ -64,9 +64,12 @@ export interface UserAnswer {
 export interface HealthProfile {
   age?: number;
   sex_at_birth?: 'male' | 'female' | 'other';
+  height_cm?: number;
+  weight_kg?: number;
   chronic_conditions?: string[];
   medications?: string[];
   allergies?: string[];
+  diet_prefs?: string[];
 }
 
 export interface StructuredSymptomRequest {
