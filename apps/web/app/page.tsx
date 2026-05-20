@@ -1,19 +1,49 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useUser } from "@/hooks/useUser";
 
 export default function HomePage() {
-  const { isGuest, loading, loginWithGoogle } = useUser();
+  const { isGuest, loading, loginWithGoogle, loginWithPassword } = useUser();
   const router = useRouter();
+
+  // Secret modal state
+  const [showSecretModal, setShowSecretModal] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [authLoading, setAuthLoading] = useState(false);
+
+  // Secret tap counter — 5 clicks within 3s on the emoji
+  const clickTimestamps = useRef<number[]>([]);
+  const handleSecretTap = () => {
+    const now = Date.now();
+    clickTimestamps.current = [...clickTimestamps.current, now].filter(
+      (t) => now - t < 3000,
+    );
+    if (clickTimestamps.current.length >= 5) {
+      clickTimestamps.current = [];
+      setShowSecretModal(true);
+    }
+  };
+
+  const handlePasswordLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError(null);
+    setAuthLoading(true);
+    const { error } = await loginWithPassword(email, password);
+    setAuthLoading(false);
+    if (error) setAuthError(error);
+    else setShowSecretModal(false);
+  };
 
   useEffect(() => {
     if (!loading && !isGuest) router.push("/dashboard");
   }, [loading, isGuest, router]);
 
-  if (loading) { // Show spinner while auth is resolving
+  if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-64px)]">
         <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600" />
@@ -23,7 +53,15 @@ export default function HomePage() {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[calc(100vh-64px)] px-4 text-center bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      <div className="mb-6 text-6xl">🩺</div>
+      {/* Secret trigger — no visual hint, just the emoji */}
+      <div
+        className="mb-6 text-6xl select-none cursor-default"
+        onClick={handleSecretTap}
+        aria-hidden="true"
+      >
+        🩺
+      </div>
+
       <h1 className="text-4xl font-bold text-gray-900 mb-4">
         Know What Your Body Is Telling You
       </h1>
@@ -76,6 +114,66 @@ export default function HomePage() {
         professional medical advice. Always consult a qualified healthcare
         provider for medical concerns.
       </p>
+
+      {/* Secret password modal — invisible to regular users */}
+      {showSecretModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-sm mx-4">
+            <h2 className="text-lg font-semibold text-gray-800 mb-1">
+              Admin Sign In
+            </h2>
+            <p className="text-sm text-gray-400 mb-6">Password-based access</p>
+
+            <form
+              onSubmit={handlePasswordLogin}
+              className="flex flex-col gap-4"
+            >
+              <input
+                type="email"
+                placeholder="Email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                autoFocus
+                className="px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <input
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+
+              {authError && (
+                <p className="text-sm text-red-500 text-left">{authError}</p>
+              )}
+
+              <button
+                type="submit"
+                disabled={authLoading}
+                className="px-4 py-3 bg-gray-900 text-white rounded-xl text-sm font-medium hover:bg-gray-700 transition disabled:opacity-50"
+              >
+                {authLoading ? "Signing in…" : "Sign In"}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setShowSecretModal(false);
+                  setAuthError(null);
+                  setEmail("");
+                  setPassword("");
+                }}
+                className="text-sm text-gray-400 hover:text-gray-600 transition"
+              >
+                Cancel
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

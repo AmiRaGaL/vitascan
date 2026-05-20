@@ -16,12 +16,33 @@ export function useUser() {
     });
   };
 
+  const loginWithPassword = async (
+    email: string,
+    password: string,
+  ): Promise<{ error: string | null }> => {
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    if (error) return { error: error.message };
+    router.push("/dashboard");
+    return { error: null };
+  };
+
   const logout = async () => {
     await supabase.auth.signOut();
-    // router.push('/');
     window.location.href = "/";
     router.refresh();
   };
 
-  return { user, session, tier, isGuest, loading, loginWithGoogle, logout };
+  return {
+    user,
+    session,
+    tier,
+    isGuest,
+    loading,
+    loginWithGoogle,
+    loginWithPassword,
+    logout,
+  };
 }
