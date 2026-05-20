@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { TriageBadge } from "@/components/TriageBadge";
 import { useUser } from "@/hooks/useUser";
 import { createClient } from "@/lib/supabase/client";
 
@@ -17,6 +18,8 @@ interface SessionSummary {
 interface TodayUsage {
   symptom_checks_used: number;
   chats_used: number;
+  symptom_checks_limit: number;
+  chats_limit: number | null;
 }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
@@ -29,6 +32,17 @@ export default function DashboardPage() {
   const [sessionsError, setSessionsError] = useState<string | null>(null);
   const [usage, setUsage] = useState<TodayUsage | null>(null);
   const [usageError, setUsageError] = useState<string | null>(null);
+  const symptomLimit = usage?.symptom_checks_limit ?? 5;
+  const symptomUsed = usage?.symptom_checks_used ?? 0;
+  const isAtSymptomLimit = symptomUsed >= symptomLimit;
+  const isNearSymptomLimit = !isAtSymptomLimit && symptomLimit - symptomUsed <= 1;
+  const chatLimit = usage?.chats_limit ?? 10;
+  const chatUsed = usage?.chats_used ?? 0;
+  const isNearChatLimit =
+    !!usage &&
+    usage.chats_limit !== null &&
+    chatLimit - chatUsed <= 2 &&
+    chatUsed < chatLimit;
 
   useEffect(() => {
     if (!loading && isGuest) router.push("/");
@@ -107,15 +121,24 @@ export default function DashboardPage() {
       <p className="text-gray-500 mb-8">{user?.email}</p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-10">
-        <Link
-          href="/symptom-check"
-          className="block p-6 bg-blue-600 text-white rounded-2xl hover:bg-blue-700 transition"
-        >
-          <h2 className="text-xl font-semibold mb-1">Start Symptom Check</h2>
-          <p className="text-blue-100 text-sm">
-            Get AI-powered triage guidance
-          </p>
-        </Link>
+        {isAtSymptomLimit ? (
+          <div className="block rounded-2xl bg-gray-200 p-6 text-gray-500">
+            <h2 className="mb-1 text-xl font-semibold">Start Symptom Check</h2>
+            <p className="text-sm">
+              Daily limit reached. You can start again tomorrow.
+            </p>
+          </div>
+        ) : (
+          <Link
+            href="/symptom-check"
+            className="block rounded-2xl bg-blue-600 p-6 text-white transition hover:bg-blue-700"
+          >
+            <h2 className="mb-1 text-xl font-semibold">Start Symptom Check</h2>
+            <p className="text-sm text-blue-100">
+              Get AI-powered triage guidance
+            </p>
+          </Link>
+        )}
         <Link
           href="/profile"
           className="block p-6 bg-white border border-gray-200 rounded-2xl hover:border-blue-300 transition"
@@ -136,12 +159,33 @@ export default function DashboardPage() {
         {usageError ? (
           <p className="text-sm text-gray-400">{usageError}</p>
         ) : (
-          <p className="text-gray-600">
-            Symptom checks used:{" "}
-            <span className="font-semibold text-gray-900">
-              {usage?.symptom_checks_used ?? 0}
-            </span>
-          </p>
+          <div className="space-y-2 text-gray-600">
+            <UsageLine
+              label="Symptom checks"
+              used={symptomUsed}
+              limit={symptomLimit}
+            />
+            <UsageLine
+              label="Follow-up chats"
+              used={chatUsed}
+              limit={usage?.chats_limit ?? null}
+            />
+            {isNearSymptomLimit && (
+              <p className="text-sm text-amber-700">
+                You have one symptom check left today.
+              </p>
+            )}
+            {isAtSymptomLimit && (
+              <p className="text-sm text-red-600">
+                You have reached today&apos;s symptom check limit.
+              </p>
+            )}
+            {isNearChatLimit && (
+              <p className="text-sm text-amber-700">
+                You are close to today&apos;s chat limit.
+              </p>
+            )}
+          </div>
         )}
       </div>
 
@@ -162,9 +206,19 @@ export default function DashboardPage() {
             </button>
           </div>
         ) : sessions.length === 0 ? (
-          <p className="text-gray-400 text-sm">
-            No sessions yet. Start your first symptom check!
-          </p>
+          <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-6 text-center">
+            <p className="text-sm text-gray-500">
+              No sessions yet. Your completed symptom checks will show up here.
+            </p>
+            {!isAtSymptomLimit && (
+              <Link
+                href="/symptom-check"
+                className="mt-4 inline-flex rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
+              >
+                Start your first symptom check
+              </Link>
+            )}
+          </div>
         ) : (
           <div className="divide-y divide-gray-100">
             {sessions.map((session) => (
@@ -182,9 +236,7 @@ export default function DashboardPage() {
                       {new Date(session.created_at).toLocaleString()}
                     </p>
                   </div>
-                  <span className="shrink-0 rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
-                    {session.triage_level?.replace(/_/g, " ") || "Pending"}
-                  </span>
+                  <TriageBadge level={session.triage_level} />
                 </div>
               </Link>
             ))}
@@ -199,6 +251,27 @@ export default function DashboardPage() {
         Sign out
       </button>
     </div>
+  );
+}
+
+function UsageLine({
+  label,
+  used,
+  limit,
+}: {
+  label: string;
+  used: number;
+  limit: number | null;
+}) {
+  return (
+    <p>
+      {label}:{" "}
+      <span className="font-semibold text-gray-900">
+        {used}
+        {limit === null ? "" : `/${limit}`}
+      </span>
+      {limit === null && <span className="text-gray-400"> / no daily cap</span>}
+    </p>
   );
 }
 

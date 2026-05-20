@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { MedicalDisclaimer } from "@/components/MedicalDisclaimer";
 import { useUser } from "@/hooks/useUser";
 
 export default function HomePage() {
@@ -109,11 +110,7 @@ export default function HomePage() {
         <span>✓ AI-powered triage</span>
       </div>
 
-      <p className="text-xs text-gray-400 max-w-lg">
-        ⚠️ <strong>Medical Disclaimer:</strong> VitaScan is not a substitute for
-        professional medical advice. Always consult a qualified healthcare
-        provider for medical concerns.
-      </p>
+      <MedicalDisclaimer className="max-w-lg text-gray-400" />
 
       {/* Secret password modal — invisible to regular users */}
       {showSecretModal && (

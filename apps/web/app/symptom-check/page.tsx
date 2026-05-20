@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { MedicalDisclaimer } from "@/components/MedicalDisclaimer";
 import { createClient } from "@/lib/supabase/client";
 
 // Types matching backend
@@ -232,7 +233,7 @@ export default function SymptomChecker() {
         }),
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
       if (!res.ok) throw new Error(data?.message || "Failed to analyze symptoms");
 
       if (session?.access_token && data.sessionId) {
@@ -244,7 +245,7 @@ export default function SymptomChecker() {
       setStep("results");
     } catch (error) {
       console.error(error);
-      alert("Failed to analyze symptoms");
+      alert(error instanceof Error ? error.message : "Failed to analyze symptoms");
     } finally {
       setLoading(false);
     }
@@ -767,13 +768,7 @@ export default function SymptomChecker() {
           )}
         </div>
 
-        {/* Disclaimer */}
-        <p className="text-center text-sm text-gray-500 mt-6 max-w-2xl mx-auto">
-          ⚠️ <strong>Medical Disclaimer:</strong> This tool provides
-          informational guidance only and is not a substitute for professional
-          medical advice, diagnosis, or treatment. Always consult a qualified
-          healthcare provider for medical concerns.
-        </p>
+        <MedicalDisclaimer className="mx-auto mt-6 max-w-2xl text-center" />
       </div>
     </main>
   );

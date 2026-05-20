@@ -10,6 +10,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { MedicalDisclaimer } from "@/components/MedicalDisclaimer";
 import { useUser } from "@/hooks/useUser";
 import { createClient } from "@/lib/supabase/client";
 
@@ -198,10 +199,7 @@ export default function SessionChatPage() {
         </div>
       </div>
 
-      <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-        VitaScan can help explain triage guidance, but it does not diagnose or
-        prescribe. If symptoms feel severe or urgent, seek emergency care now.
-      </div>
+      <MedicalDisclaimer className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-amber-900" />
 
       {error && (
         <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">

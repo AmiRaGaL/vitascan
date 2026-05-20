@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { MedicalDisclaimer } from "@/components/MedicalDisclaimer";
+import { normalizeTriageLevel, TriageBadge } from "@/components/TriageBadge";
 import { useUser } from "@/hooks/useUser";
 import { createClient } from "@/lib/supabase/client";
 
@@ -195,14 +197,29 @@ export default function SessionDetailsPage() {
         <Link href="/dashboard" className="text-sm text-blue-600 hover:underline">
           Back to dashboard
         </Link>
-        <div className="mt-6 bg-white border border-gray-200 rounded-2xl p-6">
+        <div className="mt-6 bg-white border border-gray-200 rounded-2xl p-8 text-center">
           <h1 className="text-2xl font-bold text-gray-900">
             {error || "Session not found"}
           </h1>
+          <p className="mt-2 text-sm text-gray-500">
+            This session may have been removed or may not belong to your account.
+          </p>
+          <Link
+            href="/dashboard"
+            className="mt-5 inline-flex rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
+          >
+            Return to dashboard
+          </Link>
         </div>
       </div>
     );
   }
+
+  const normalizedLevel = normalizeTriageLevel(session.triage_level);
+  const showEmergencyGuidance =
+    session.red_flags_detected ||
+    normalizedLevel === "emergency" ||
+    normalizedLevel === "er";
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-10">
@@ -220,10 +237,21 @@ export default function SessionDetailsPage() {
               {new Date(session.created_at).toLocaleString()}
             </p>
           </div>
-          <span className="shrink-0 rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
-            {session.triage_level?.replace(/_/g, " ") || "Pending"}
-          </span>
+          <TriageBadge level={session.triage_level} />
         </div>
+
+        <MedicalDisclaimer className="mb-6 rounded-lg border border-gray-200 bg-gray-50 p-3" />
+
+        {showEmergencyGuidance && (
+          <div className="mb-6 rounded-lg border border-red-300 bg-red-50 p-5 text-red-900">
+            <h2 className="text-lg font-semibold">Urgent care guidance</h2>
+            <p className="mt-2 text-sm leading-6">
+              This may require urgent or emergency care. Call emergency
+              services or go to the nearest ER if symptoms are severe, sudden,
+              or worsening.
+            </p>
+          </div>
+        )}
 
         <div className="mb-6">
           <button
@@ -238,12 +266,6 @@ export default function SessionDetailsPage() {
         </div>
 
         {error && <p className="mb-4 text-sm text-red-500">{error}</p>}
-
-        {session.red_flags_detected && (
-          <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 text-red-800">
-            Warning: red flags were detected in this session.
-          </div>
-        )}
 
         <div className="space-y-5">
           <Detail label="Suggested specialty" value={session.specialty_suggestion} />

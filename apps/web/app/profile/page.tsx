@@ -120,9 +120,10 @@ export default function ProfilePage() {
         }),
       });
 
-      if (!res.ok) throw new Error("Failed to save profile");
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.message || "Failed to save profile");
 
-      setMessage("Profile saved successfully.");
+      setMessage("Profile saved. Future symptom checks can use this context.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save profile");
     } finally {
@@ -218,8 +219,16 @@ export default function ProfilePage() {
             placeholder="Vegetarian, Low sodium"
           />
 
-          {message && <p className="text-sm text-green-600">{message}</p>}
-          {error && <p className="text-sm text-red-500">{error}</p>}
+          {message && (
+            <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700">
+              {message}
+            </div>
+          )}
+          {error && (
+            <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+              {error}
+            </div>
+          )}
 
           <button
             type="submit"

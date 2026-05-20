@@ -20,6 +20,14 @@ import type {
   StructuredSymptomRequest,
 } from '@vitascan/shared';
 
+const SYMPTOM_LIMITS = {
+  guest: 3,
+  free: 5,
+  premium: 50,
+} as const;
+
+const guestUsageByIp = new Map<string, { date: string; count: number }>();
+
 @Controller('symptom-sessions')
 export class SymptomController {
   constructor(
@@ -117,6 +125,8 @@ export class SymptomController {
     if (validationError)
       throw new HttpException(validationError, HttpStatus.BAD_REQUEST);
 
+    await this.enforceSymptomLimit(req);
+
     // 1. Get AI response
     let triageResult = await this.groq.analyzeStructuredSymptoms(body);
 
@@ -167,6 +177,66 @@ export class SymptomController {
     }
 
     return { sessionId: data.id, triage: triageResult };
+  }
+
+  private async enforceSymptomLimit(req: any) {
+    const today = new Date().toISOString().slice(0, 10);
+
+    if (!req.user?.id) {
+      const ip = this.getClientIp(req);
+      const current = guestUsageByIp.get(ip);
+      const count = current?.date === today ? current.count : 0;
+
+      if (count >= SYMPTOM_LIMITS.guest) {
+        throw new HttpException(
+          `Daily symptom check limit reached (${SYMPTOM_LIMITS.guest}/day for guests). Sign in for a higher limit.`,
+          HttpStatus.TOO_MANY_REQUESTS,
+        );
+      }
+
+      guestUsageByIp.set(ip, { date: today, count: count + 1 });
+      return;
+    }
+
+    const { data: user, error: userError } = await this.supabase.supabase
+      .from('users')
+      .select('tier')
+      .eq('id', req.user.id)
+      .maybeSingle<{ tier: 'free' | 'premium' | null }>();
+
+    if (userError)
+      throw new HttpException(
+        userError.message,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+
+    const tier = user?.tier === 'premium' ? 'premium' : 'free';
+    const limit = SYMPTOM_LIMITS[tier];
+    const { data, error } = await this.supabase.supabase
+      .from('usage_counters')
+      .select('symptom_checks_used')
+      .eq('user_id', req.user.id)
+      .eq('date', today)
+      .maybeSingle<{ symptom_checks_used: number }>();
+
+    if (error)
+      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+
+    if ((data?.symptom_checks_used ?? 0) >= limit) {
+      throw new HttpException(
+        `Daily symptom check limit reached (${limit}/day).`,
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+  }
+
+  private getClientIp(req: any): string {
+    const forwardedFor = req.headers?.['x-forwarded-for'];
+    if (typeof forwardedFor === 'string' && forwardedFor.length > 0) {
+      return forwardedFor.split(',')[0].trim();
+    }
+
+    return req.ip || req.socket?.remoteAddress || 'unknown';
   }
 
   private validateAnalyzePayload(
