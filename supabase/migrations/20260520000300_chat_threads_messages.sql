@@ -17,7 +17,7 @@ create table if not exists public.chat_messages (
   sender text not null,
   content text not null,
   created_at timestamptz not null default now(),
-  constraint chat_messages_sender_check check (sender in ('user', 'assistant')),
+  constraint chat_messages_sender_check check (sender in ('user', 'ai')),
   constraint chat_messages_content_check check (length(trim(content)) > 0)
 );
 
@@ -26,6 +26,16 @@ alter table public.chat_messages add column if not exists thread_id uuid referen
 alter table public.chat_messages add column if not exists sender text;
 alter table public.chat_messages add column if not exists content text;
 alter table public.chat_messages add column if not exists created_at timestamptz not null default now();
+
+update public.chat_messages
+set sender = 'ai'
+where sender = 'assistant';
+
+alter table public.chat_messages
+  drop constraint if exists chat_messages_sender_check;
+
+alter table public.chat_messages
+  add constraint chat_messages_sender_check check (sender in ('user', 'ai'));
 
 create unique index if not exists chat_threads_user_session_unique_idx
   on public.chat_threads (user_id, symptom_session_id);

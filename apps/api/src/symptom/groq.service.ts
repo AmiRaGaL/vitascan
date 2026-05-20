@@ -173,7 +173,7 @@ async generateFollowUpChatResponse(data: {
   const history = data.messages
     .slice(-12)
     .map((message) => {
-      const role = message.sender === 'assistant' ? 'Assistant' : 'User';
+      const role = message.sender === 'ai' ? 'Assistant' : 'User';
       return `${role}: ${message.content}`;
     })
     .join('\n');

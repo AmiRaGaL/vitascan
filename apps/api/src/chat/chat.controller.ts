@@ -31,7 +31,7 @@ interface ChatThread {
 interface ChatMessage {
   id: string;
   thread_id: string;
-  sender: 'user' | 'assistant';
+  sender: 'user' | 'ai';
   content: string;
   created_at: string;
 }
@@ -49,7 +49,10 @@ interface SymptomSessionContext {
   created_at: string;
 }
 
-const FREE_DAILY_CHAT_LIMIT = 10;
+const CHAT_LIMITS = {
+  free: 10,
+  premium: 50,
+} as const;
 
 @Controller('chat')
 @UseGuards(OptionalAuthGuard)
@@ -124,7 +127,7 @@ export class ChatController {
 
     const thread = await this.getOwnedThread(id, userId);
     const session = await this.getOwnedSession(thread.symptom_session_id, userId);
-    await this.enforceChatLimit(userId);
+    const chatLimit = await this.enforceChatLimit(userId);
 
     const { data: userMessage, error: userMessageError } =
       await this.supabase.supabase
@@ -158,7 +161,7 @@ export class ChatController {
         .from('chat_messages')
         .insert({
           thread_id: id,
-          sender: 'assistant',
+          sender: 'ai',
           content: aiContent,
         })
         .select('id, thread_id, sender, content, created_at')
@@ -167,9 +170,12 @@ export class ChatController {
     if (assistantMessageError)
       this.throwSupabaseError(assistantMessageError.message);
 
+    await this.incrementChatUsage(userId);
+
     return {
       userMessage,
       message: assistantMessage,
+      limit: chatLimit,
     };
   }
 
@@ -211,10 +217,12 @@ export class ChatController {
       .from('users')
       .select('tier')
       .eq('id', userId)
-      .maybeSingle<{ tier: string | null }>();
+      .maybeSingle<{ tier: 'free' | 'premium' | null }>();
 
     if (userError) this.throwSupabaseError(userError.message);
 
+    const tier = user?.tier === 'premium' ? 'premium' : 'free';
+    const limit = CHAT_LIMITS[tier];
     const { data, error } = await this.supabase.supabase
       .from('usage_counters')
       .select('chats_used')
@@ -223,16 +231,18 @@ export class ChatController {
       .maybeSingle<{ chats_used: number }>();
 
     if (error) this.throwSupabaseError(error.message);
-    if (
-      (user?.tier ?? 'free') === 'free' &&
-      (data?.chats_used ?? 0) >= FREE_DAILY_CHAT_LIMIT
-    ) {
+    if ((data?.chats_used ?? 0) >= limit) {
       throw new HttpException(
-        `Daily chat limit reached (${FREE_DAILY_CHAT_LIMIT}/day).`,
+        `Daily chat limit reached (${limit}/day).`,
         HttpStatus.TOO_MANY_REQUESTS,
       );
     }
 
+    return limit;
+  }
+
+  private async incrementChatUsage(userId: string) {
+    const today = new Date().toISOString().slice(0, 10);
     const { error: usageError } = await this.supabase.supabase.rpc(
       'increment_chat_usage',
       {

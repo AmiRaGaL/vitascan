@@ -16,7 +16,7 @@ const SYMPTOM_LIMITS = {
 
 const CHAT_LIMITS = {
   free: 10,
-  premium: null,
+  premium: 50,
 } as const;
 
 @Controller('usage')

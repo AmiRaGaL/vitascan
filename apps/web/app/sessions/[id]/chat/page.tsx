@@ -24,7 +24,7 @@ interface ChatThread {
 interface ChatMessage {
   id: string;
   thread_id: string;
-  sender: "user" | "assistant";
+  sender: "user" | "ai";
   content: string;
   created_at: string;
 }
