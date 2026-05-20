@@ -14,6 +14,7 @@ import {
   KnowledgeBaseChunk,
   KnowledgeBaseService,
 } from '../kb/knowledge-base.service';
+import { RateLimitService } from '../security/rate-limit.service';
 import { GroqService } from '../symptom/groq.service';
 import { SupabaseService } from '../supabase/supabase.service';
 
@@ -65,6 +66,7 @@ export class ChatController {
     private readonly supabase: SupabaseService,
     private readonly groq: GroqService,
     private readonly knowledgeBase: KnowledgeBaseService,
+    private readonly rateLimit: RateLimitService,
   ) {}
 
   @Post('threads')
@@ -123,6 +125,11 @@ export class ChatController {
   ) {
     const userId = this.requireUser(req);
     const content = this.requireString(body?.content, 'content is required');
+    this.rateLimit.enforce('chat:message', userId, {
+      limit: 20,
+      windowMs: 60_000,
+    });
+
     if (content.length > 2000) {
       throw new HttpException(
         'Message must be 2000 characters or fewer',
@@ -288,7 +295,10 @@ export class ChatController {
 
   private requireUser(req: any): string {
     if (!req.user?.id)
-      throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
+      throw new HttpException(
+        'Authentication required',
+        HttpStatus.UNAUTHORIZED,
+      );
     return req.user.id;
   }
 

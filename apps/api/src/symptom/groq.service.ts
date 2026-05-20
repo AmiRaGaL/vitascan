@@ -105,8 +105,6 @@ Return ONLY the JSON object, nothing else.`;
 
   let content = completion.choices[0].message.content!;
   
-  console.log('🤖 Raw AI Response:', content); // Debug logging
-  
   // Aggressive stripping of markdown and extra text
   content = content.trim();
   
@@ -120,8 +118,6 @@ Return ONLY the JSON object, nothing else.`;
     content = jsonMatch[0];
   }
   
-  console.log('🧹 Cleaned Response:', content); // Debug logging
-  
   try {
     const parsed = JSON.parse(content);
     
@@ -132,9 +128,9 @@ Return ONLY the JSON object, nothing else.`;
     
     return parsed;
   } catch (error) {
-    console.error('❌ Failed to parse AI response');
-    console.error('Raw content:', content);
-    console.error('Error:', error);
+    console.error('Failed to parse AI symptom response', {
+      error: error instanceof Error ? error.message : String(error),
+    });
     
     // Return a safe fallback response
     return {

@@ -44,7 +44,10 @@ export class RecipesController {
   @Get(':id/recipes')
   async getSessionRecipes(@Param('id') id: string, @Req() req: any) {
     if (!req.user?.id)
-      throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
+      throw new HttpException(
+        'Authentication required',
+        HttpStatus.UNAUTHORIZED,
+      );
 
     const { data: session, error: sessionError } = await this.supabase.supabase
       .from('symptom_sessions')

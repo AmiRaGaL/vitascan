@@ -7,6 +7,7 @@ import { ProfileModule } from './profile/profile.module';
 import { UsageModule } from './usage/usage.module';
 import { RecipesModule } from './recipes/recipes.module';
 import { ChatModule } from './chat/chat.module';
+import { SecurityModule } from './security/security.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { ChatModule } from './chat/chat.module';
     UsageModule,
     RecipesModule,
     ChatModule,
+    SecurityModule,
   ],
   controllers: [AppController],
   providers: [AppService],

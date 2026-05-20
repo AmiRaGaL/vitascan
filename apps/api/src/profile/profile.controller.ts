@@ -9,6 +9,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { OptionalAuthGuard } from '../auth/optional-auth.guard';
+import { RateLimitService } from '../security/rate-limit.service';
 import { SupabaseService } from '../supabase/supabase.service';
 
 interface HealthProfileBody {
@@ -33,12 +34,18 @@ interface ProfileStatus {
 @Controller('profile')
 @UseGuards(OptionalAuthGuard)
 export class ProfileController {
-  constructor(private readonly supabase: SupabaseService) {}
+  constructor(
+    private readonly supabase: SupabaseService,
+    private readonly rateLimit: RateLimitService,
+  ) {}
 
   @Get()
   async getProfile(@Req() req: any) {
     if (!req.user?.id)
-      throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
+      throw new HttpException(
+        'Authentication required',
+        HttpStatus.UNAUTHORIZED,
+      );
 
     const { data, error } = await this.supabase.supabase
       .from('health_profiles')
@@ -55,7 +62,10 @@ export class ProfileController {
   @Get('status')
   async getProfileStatus(@Req() req: any): Promise<ProfileStatus> {
     if (!req.user?.id)
-      throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
+      throw new HttpException(
+        'Authentication required',
+        HttpStatus.UNAUTHORIZED,
+      );
 
     const { data, error } = await this.supabase.supabase
       .from('health_profiles')
@@ -72,7 +82,15 @@ export class ProfileController {
   @Put()
   async updateProfile(@Body() body: HealthProfileBody, @Req() req: any) {
     if (!req.user?.id)
-      throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
+      throw new HttpException(
+        'Authentication required',
+        HttpStatus.UNAUTHORIZED,
+      );
+
+    this.rateLimit.enforce('profile:update', req.user.id, {
+      limit: 20,
+      windowMs: 60_000,
+    });
 
     const validationError = this.validateProfile(body);
     if (validationError)

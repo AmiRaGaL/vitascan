@@ -152,6 +152,10 @@ export default function ProfilePage() {
         <p className="mt-2 text-gray-500">
           Keep your health context current for future symptom checks.
         </p>
+        <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+          Only share information you&apos;re comfortable saving. You can delete
+          saved sessions from your dashboard.
+        </p>
 
         <form onSubmit={handleSubmit} className="mt-8 space-y-5">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">

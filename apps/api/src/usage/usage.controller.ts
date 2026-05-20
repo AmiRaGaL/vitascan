@@ -27,7 +27,10 @@ export class UsageController {
   @Get('today')
   async getTodayUsage(@Req() req: any) {
     if (!req.user?.id)
-      throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
+      throw new HttpException(
+        'Authentication required',
+        HttpStatus.UNAUTHORIZED,
+      );
 
     const today = new Date().toISOString().slice(0, 10);
     const { data: user, error: userError } = await this.supabase.supabase

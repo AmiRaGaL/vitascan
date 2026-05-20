@@ -339,6 +339,10 @@ export default function SymptomChecker() {
           <p className="text-gray-600">
             Intelligent symptom assessment powered by AI
           </p>
+          <p className="mx-auto mt-3 max-w-2xl rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+            Only share information you&apos;re comfortable saving. You can delete
+            saved sessions from your dashboard.
+          </p>
         </div>
 
         {isLoggedIn && hasSavedProfile === false && !profileReminderDismissed && (
@@ -759,7 +763,7 @@ export default function SymptomChecker() {
                 className="mt-6 w-full bg-green-600 text-white py-4 rounded-xl font-semibold hover:bg-green-700 
                            disabled:opacity-50 transition-colors text-lg"
               >
-                {loading ? "Analyzing..." : "Get AI Diagnosis"}
+                {loading ? "Analyzing..." : "Get AI Guidance"}
               </button>
             </div>
           )}

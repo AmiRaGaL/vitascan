@@ -19,6 +19,7 @@ import {
   KnowledgeBaseChunk,
   KnowledgeBaseService,
 } from '../kb/knowledge-base.service';
+import { RateLimitService } from '../security/rate-limit.service';
 import type {
   BodyArea,
   SymptomCategory,
@@ -41,6 +42,7 @@ export class SymptomController {
     private readonly groq: GroqService,
     private readonly redFlags: RedFlagsService,
     private readonly knowledgeBase: KnowledgeBaseService,
+    private readonly rateLimit: RateLimitService,
   ) {}
 
   @Get('body-areas')
@@ -91,7 +93,10 @@ export class SymptomController {
     @Query('limit') limitQuery?: string,
   ) {
     if (!req.user?.id)
-      throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
+      throw new HttpException(
+        'Authentication required',
+        HttpStatus.UNAUTHORIZED,
+      );
 
     const page = this.parsePositiveInt(pageQuery, 1);
     const limit = Math.min(this.parsePositiveInt(limitQuery, 10), 50);
@@ -126,7 +131,10 @@ export class SymptomController {
   @UseGuards(OptionalAuthGuard)
   async getSessionById(@Param('id') id: string, @Req() req: any) {
     if (!req.user?.id)
-      throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
+      throw new HttpException(
+        'Authentication required',
+        HttpStatus.UNAUTHORIZED,
+      );
 
     const { data, error } = await this.supabase.supabase
       .from('symptom_sessions')
@@ -147,7 +155,10 @@ export class SymptomController {
   @UseGuards(OptionalAuthGuard)
   async deleteSession(@Param('id') id: string, @Req() req: any) {
     if (!req.user?.id)
-      throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
+      throw new HttpException(
+        'Authentication required',
+        HttpStatus.UNAUTHORIZED,
+      );
 
     const { data: session, error: sessionError } =
       await this.supabase.supabase
@@ -186,6 +197,15 @@ export class SymptomController {
     const validationError = this.validateAnalyzePayload(body);
     if (validationError)
       throw new HttpException(validationError, HttpStatus.BAD_REQUEST);
+
+    this.rateLimit.enforce(
+      'symptom:analyze',
+      req.user?.id ?? this.getClientIp(req),
+      {
+        limit: 12,
+        windowMs: 60_000,
+      },
+    );
 
     await this.enforceSymptomLimit(req);
 
