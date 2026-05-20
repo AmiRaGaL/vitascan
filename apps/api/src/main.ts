@@ -80,6 +80,7 @@ function logRequestSummary(req: Request, res: Response, next: NextFunction) {
     const responseTimeMs = Date.now() - startedAt;
     console.log(
       JSON.stringify({
+        timestamp: new Date().toISOString(),
         method: req.method,
         route,
         statusCode: res.statusCode,

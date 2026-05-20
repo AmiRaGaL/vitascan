@@ -31,23 +31,48 @@ export async function apiFetch<T>(
 
   try {
     response = await fetch(getApiUrl(path), init);
-  } catch {
-    throw new ApiError(
-      "Unable to reach VitaScan right now. Please try again.",
-      0,
-    );
+  } catch (caught) {
+    const error =
+      caught instanceof ApiError
+        ? caught
+        : new ApiError(
+            "Unable to reach VitaScan right now. Please try again.",
+            0,
+          );
+    logApiFetchError(path, error);
+    throw error;
   }
 
   const payload = await response.json().catch(() => null);
 
   if (!response.ok) {
-    throw new ApiError(
+    const error = new ApiError(
       typeof payload?.message === "string"
         ? payload.message
         : "Something went wrong. Please try again.",
       response.status,
     );
+    logApiFetchError(path, error);
+    throw error;
   }
 
   return payload as T;
+}
+
+export function logApiFetchError(path: string, error: unknown) {
+  const status = error instanceof ApiError ? error.statusCode : undefined;
+  const message =
+    error instanceof Error ? error.message : "Unknown frontend API error";
+
+  if (process.env.NODE_ENV !== "production") {
+    console.warn("VitaScan API request failed", {
+      endpoint: stripQuery(path),
+      status,
+      message,
+    });
+  }
+}
+
+function stripQuery(path: string) {
+  return path.split("?")[0];
 }

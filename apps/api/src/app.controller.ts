@@ -1,31 +1,62 @@
 import { Controller, Get } from '@nestjs/common';
-import { AppService } from './app.service';
 import { SupabaseService } from './supabase/supabase.service';
 
 @Controller()
 export class AppController {
-  constructor(
-    private readonly appService: AppService,
-    private readonly supabase: SupabaseService,
-  ) {}
+  constructor(private readonly supabase: SupabaseService) {}
 
   @Get('health')
   async getHealth() {
+    const supabaseStatus = await this.checkSupabase();
+
+    return {
+      status: supabaseStatus.ok ? 'ok' : 'degraded',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      environment: process.env.NODE_ENV ?? 'development',
+      supabase: {
+        status: supabaseStatus.ok ? 'ok' : 'degraded',
+      },
+      ai: {
+        configured: Boolean(process.env.GROQ_API_KEY),
+      },
+      app: {
+        name: process.env.npm_package_name ?? '@vitascan/api',
+        version: process.env.npm_package_version ?? '0.0.1',
+      },
+    };
+  }
+
+  @Get('health/deep')
+  async getDeepHealth() {
+    const supabaseStatus = await this.checkSupabase();
+    const aiConfigured = Boolean(process.env.GROQ_API_KEY);
+    const ok = supabaseStatus.ok && aiConfigured;
+
+    return {
+      status: ok ? 'ok' : 'degraded',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      environment: process.env.NODE_ENV ?? 'development',
+      checks: {
+        supabase: {
+          status: supabaseStatus.ok ? 'pass' : 'fail',
+        },
+        aiProviderConfig: {
+          status: aiConfigured ? 'pass' : 'fail',
+        },
+      },
+    };
+  }
+
+  private async checkSupabase() {
     const { error } = await this.supabase.supabase
       .from('users')
       .select('id')
       .limit(1);
 
     return {
-      status: error ? 'degraded' : this.appService.getHello(),
-      timestamp: new Date().toISOString(),
-      supabase: {
-        connected: !error,
-      },
-      app: {
-        name: process.env.npm_package_name ?? '@vitascan/api',
-        version: process.env.npm_package_version ?? '0.0.1',
-      },
+      ok: !error,
     };
   }
 }
