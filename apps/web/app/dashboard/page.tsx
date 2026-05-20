@@ -1,18 +1,68 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useUser } from "@/hooks/useUser";
 import { createClient } from "@/lib/supabase/client";
 
+interface SessionSummary {
+  id: string;
+  initial_input: string | null;
+  triage_level: string | null;
+  red_flags_detected: boolean | null;
+  created_at: string;
+}
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+
 export default function DashboardPage() {
   const { user, isGuest, loading, logout } = useUser();
   const router = useRouter();
+  const [sessions, setSessions] = useState<SessionSummary[]>([]);
+  const [sessionsLoading, setSessionsLoading] = useState(true);
+  const [sessionsError, setSessionsError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && isGuest) router.push("/");
   }, [loading, isGuest, router]);
+
+  useEffect(() => {
+    if (loading || isGuest) return;
+
+    const loadSessions = async () => {
+      setSessionsLoading(true);
+      setSessionsError(null);
+
+      try {
+        const supabase = createClient();
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        const res = await fetch(`${API_URL}/symptom-sessions`, {
+          headers: {
+            ...(session?.access_token
+              ? { Authorization: `Bearer ${session.access_token}` }
+              : {}),
+          },
+        });
+
+        if (!res.ok) throw new Error("Failed to load recent sessions");
+
+        const data = (await res.json()) as SessionSummary[];
+        setSessions(data);
+      } catch (error) {
+        setSessionsError(
+          error instanceof Error ? error.message : "Failed to load sessions",
+        );
+      } finally {
+        setSessionsLoading(false);
+      }
+    };
+
+    loadSessions();
+  }, [loading, isGuest]);
 
   // Show spinner while auth is resolving
   if (loading) {
@@ -54,31 +104,43 @@ export default function DashboardPage() {
           </p>
         </Link>
       </div>
-      <button
-        onClick={async () => {
-          const supabase = createClient();
-          const {
-            data: { session },
-          } = await supabase.auth.getSession();
-          const res = await fetch(
-            `${process.env.NEXT_PUBLIC_API_URL}/symptom-sessions`,
-            {
-              headers: { Authorization: `Bearer ${session?.access_token}` },
-            },
-          );
-          console.log("HISTORY:", await res.json());
-        }}
-        className="mb-4 bg-blue-100 text-blue-600 px-4 py-2 rounded"
-      >
-        Test History API
-      </button>
       <div className="bg-white border border-gray-200 rounded-2xl p-6">
         <h2 className="text-lg font-semibold text-gray-800 mb-4">
           Recent Sessions
         </h2>
-        <p className="text-gray-400 text-sm">
-          No sessions yet. Start your first symptom check!
-        </p>
+        {sessionsLoading ? (
+          <p className="text-gray-400 text-sm">Loading recent sessions...</p>
+        ) : sessionsError ? (
+          <p className="text-red-500 text-sm">{sessionsError}</p>
+        ) : sessions.length === 0 ? (
+          <p className="text-gray-400 text-sm">
+            No sessions yet. Start your first symptom check!
+          </p>
+        ) : (
+          <div className="divide-y divide-gray-100">
+            {sessions.map((session) => (
+              <Link
+                key={session.id}
+                href={`/sessions/${session.id}`}
+                className="block py-4 first:pt-0 last:pb-0 hover:bg-gray-50 transition"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="font-medium text-gray-900">
+                      {session.initial_input || "Symptom check"}
+                    </p>
+                    <p className="mt-1 text-sm text-gray-500">
+                      {new Date(session.created_at).toLocaleString()}
+                    </p>
+                  </div>
+                  <span className="shrink-0 rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
+                    {session.triage_level?.replace(/_/g, " ") || "Pending"}
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
       </div>
 
       <button

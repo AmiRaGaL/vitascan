@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { createBrowserClient } from '@supabase/ssr';
+import { createClient } from "@/lib/supabase/client";
 
 // Types matching backend
 interface BodyArea {
@@ -128,17 +128,16 @@ export default function SymptomChecker() {
   };
 
   // Submit final analysis
-    const handleSubmit = async () => {
+  const handleSubmit = async () => {
     if (!selectedBodyArea || !selectedSymptom) return;
 
     setLoading(true);
     try {
       // 1. Get the current user's session token
-      const supabase = createBrowserClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      );
-      const { data: { session } } = await supabase.auth.getSession();
+      const supabase = createClient();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
       const userAnswers: UserAnswer[] = questions.map((q) => ({
         // ... (keep your existing userAnswers logic)
@@ -152,18 +151,15 @@ export default function SymptomChecker() {
         return value.split(",").map((s) => s.trim()).filter(Boolean);
       };
 
-      // 2. Prepare headers (add Auth if logged in)
-      const headers: Record<string, string> = {
-        "Content-Type": "application/json",
-      };
-      if (session?.access_token) {
-        headers["Authorization"] = `Bearer ${session.access_token}`;
-      }
-
       // 3. Send request with headers
       const res = await fetch(`${API_URL}/symptom-sessions/analyze`, {
         method: "POST",
-        headers, // <-- Use the new headers here
+        headers: {
+          "Content-Type": "application/json",
+          ...(session?.access_token
+            ? { Authorization: `Bearer ${session.access_token}` }
+            : {}),
+        },
         body: JSON.stringify({
           body_area_id: selectedBodyArea.id,
           body_area_name: selectedBodyArea.name,
