@@ -19,6 +19,16 @@ interface SavedSession {
   health_profile_snapshot: unknown;
 }
 
+interface Recipe {
+  id: string;
+  title: string;
+  ingredients: string[];
+  instructions: string;
+  tags: string[];
+  diet_labels: string[];
+  source_url: string | null;
+}
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
 export default function SessionDetailsPage() {
@@ -34,6 +44,9 @@ export default function SessionDetailsPage() {
   const [sessionLoading, setSessionLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [recipesLoading, setRecipesLoading] = useState(true);
+  const [recipesError, setRecipesError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && isGuest) router.push("/");
@@ -42,10 +55,12 @@ export default function SessionDetailsPage() {
   useEffect(() => {
     if (loading || isGuest || !id) return;
 
-    const loadSession = async () => {
+    const loadSessionAndRecipes = async () => {
       setSessionLoading(true);
+      setRecipesLoading(true);
       setNotFound(false);
       setError(null);
+      setRecipesError(null);
 
       try {
         const supabase = createClient();
@@ -64,6 +79,8 @@ export default function SessionDetailsPage() {
         if (res.status === 404) {
           setNotFound(true);
           setSession(null);
+          setRecipes([]);
+          setRecipesLoading(false);
           return;
         }
 
@@ -73,18 +90,53 @@ export default function SessionDetailsPage() {
         if (!data) {
           setNotFound(true);
           setSession(null);
+          setRecipes([]);
+          setRecipesLoading(false);
           return;
         }
 
         setSession(data);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load session");
+        setRecipes([]);
+        setRecipesLoading(false);
+        return;
       } finally {
         setSessionLoading(false);
       }
+
+      try {
+        const supabase = createClient();
+        const {
+          data: { session: authSession },
+        } = await supabase.auth.getSession();
+
+        const recipesRes = await fetch(
+          `${API_URL}/symptom-sessions/${id}/recipes`,
+          {
+            headers: {
+              ...(authSession?.access_token
+                ? { Authorization: `Bearer ${authSession.access_token}` }
+                : {}),
+            },
+          },
+        );
+
+        if (!recipesRes.ok) throw new Error("Failed to load recipes");
+
+        const recipeData = (await recipesRes.json()) as Recipe[];
+        setRecipes(recipeData);
+      } catch (err) {
+        setRecipes([]);
+        setRecipesError(
+          err instanceof Error ? err.message : "Failed to load recipes",
+        );
+      } finally {
+        setRecipesLoading(false);
+      }
     };
 
-    loadSession();
+    loadSessionAndRecipes();
   }, [loading, isGuest, id]);
 
   if (loading || sessionLoading) {
@@ -160,6 +212,73 @@ export default function SessionDetailsPage() {
           />
         </div>
       </div>
+
+      <section className="mt-6 bg-white border border-gray-200 rounded-2xl p-6">
+        <div className="mb-5">
+          <h2 className="text-xl font-bold text-gray-900">
+            Recommended recipes
+          </h2>
+          <p className="mt-1 text-sm text-gray-500">
+            Recipes are general wellness suggestions and not medical treatment.
+          </p>
+        </div>
+
+        {recipesLoading ? (
+          <p className="text-sm text-gray-400">Loading recommended recipes...</p>
+        ) : recipesError ? (
+          <p className="text-sm text-red-500">{recipesError}</p>
+        ) : recipes.length === 0 ? (
+          <p className="text-sm text-gray-400">
+            No recipe recommendations are available for this session yet.
+          </p>
+        ) : (
+          <div className="space-y-5">
+            {recipes.map((recipe) => (
+              <article
+                key={recipe.id}
+                className="border-t border-gray-100 pt-5 first:border-t-0 first:pt-0"
+              >
+                <h3 className="text-lg font-semibold text-gray-900">
+                  {recipe.title}
+                </h3>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {[...recipe.tags, ...recipe.diet_labels].map((label) => (
+                    <span
+                      key={`${recipe.id}-${label}`}
+                      className="rounded-full bg-green-50 px-3 py-1 text-xs font-medium text-green-700"
+                    >
+                      {label}
+                    </span>
+                  ))}
+                </div>
+
+                <div className="mt-4 grid gap-4 md:grid-cols-2">
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-500">
+                      Ingredients
+                    </h4>
+                    <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-gray-700">
+                      {recipe.ingredients.map((ingredient) => (
+                        <li key={`${recipe.id}-${ingredient}`}>
+                          {ingredient}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-500">
+                      Instructions
+                    </h4>
+                    <p className="mt-2 text-sm leading-6 text-gray-700">
+                      {recipe.instructions}
+                    </p>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }

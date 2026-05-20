@@ -5,9 +5,16 @@ import { SupabaseModule } from './supabase/supabase.module';
 import { SymptomModule } from './symptom/symptom.module';
 import { ProfileModule } from './profile/profile.module';
 import { UsageModule } from './usage/usage.module';
+import { RecipesModule } from './recipes/recipes.module';
 
 @Module({
-  imports: [SupabaseModule, SymptomModule, ProfileModule, UsageModule],
+  imports: [
+    SupabaseModule,
+    SymptomModule,
+    ProfileModule,
+    UsageModule,
+    RecipesModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })
