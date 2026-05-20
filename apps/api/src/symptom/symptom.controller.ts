@@ -71,12 +71,12 @@ export class SymptomController {
   @Get()
   @UseGuards(OptionalAuthGuard)
   async getUserSessions(@Req() req: any) {
-    if (!req.user.id)
+    if (!req.user?.id)
       throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
 
     const { data, error } = await this.supabase.supabase
       .from('symptom_sessions')
-      .select('id, initial_input, triage_level, created_at')
+      .select('id, initial_input, triage_level, red_flags_detected, created_at')
       .eq('user_id', req.user.id)
       .order('created_at', { ascending: false });
 
@@ -89,21 +89,30 @@ export class SymptomController {
   @Get(':id')
   @UseGuards(OptionalAuthGuard)
   async getSessionById(@Param('id') id: string, @Req() req: any) {
+    if (!req.user?.id)
+      throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
+
     const { data, error } = await this.supabase.supabase
       .from('symptom_sessions')
       .select('*')
       .eq('id', id)
-      .single();
+      .eq('user_id', req.user.id)
+      .maybeSingle();
 
-    if (error) throw new HttpException(error.message, HttpStatus.NOT_FOUND);
-    if (data.user_id && data.user_id !== req.user.id)
-      throw new HttpException('Forbidden', HttpStatus.FORBIDDEN);
+    if (error)
+      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+    if (!data)
+      throw new HttpException('Session not found', HttpStatus.NOT_FOUND);
 
     return data;
   }
 
   @Post('analyze')
-  async analyzeSymptoms(@Body() body: StructuredSymptomRequest) {
+  @UseGuards(OptionalAuthGuard)
+  async analyzeSymptoms(
+    @Body() body: StructuredSymptomRequest,
+    @Req() req: any,
+  ) {
     // 1. Get AI response
     let triageResult = await this.groq.analyzeStructuredSymptoms(body);
 
@@ -117,6 +126,7 @@ export class SymptomController {
     const { data, error } = await this.supabase.supabase
       .from('symptom_sessions')
       .insert({
+        user_id: req.user?.id ?? null,
         body_area_id: body.body_area_id,
         symptom_category_id: body.symptom_category_id,
         user_answers: body.answers,
@@ -135,6 +145,22 @@ export class SymptomController {
 
     if (error)
       throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+
+    if (req.user?.id) {
+      const { error: usageError } = await this.supabase.supabase.rpc(
+        'increment_symptom_usage',
+        {
+          p_user_id: req.user.id,
+          p_date: new Date().toISOString().slice(0, 10),
+        },
+      );
+
+      if (usageError)
+        throw new HttpException(
+          usageError.message,
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+    }
 
     return { sessionId: data.id, triage: triageResult };
   }
