@@ -4,20 +4,22 @@ Use this folder for portfolio and demo screenshots.
 
 Suggested screenshots to capture:
 
-- Home page
+- Landing page
 - Dashboard
 - Profile
 - Symptom check
-- Result/session detail
-- Recipes, if implemented in the demo environment
-- Chat, if implemented in the demo environment
+- Session detail
+- Recipes section, if enabled in the demo environment
+- Chat page, if enabled in the demo environment
+- Safety/red-flag state
 
 Recommended naming:
 
-- `home.png`
+- `landing.png`
 - `dashboard.png`
 - `profile.png`
 - `symptom-check.png`
 - `session-detail.png`
 - `recipes.png`
 - `chat.png`
+- `red-flag-state.png`

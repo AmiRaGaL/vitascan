@@ -1,52 +1,69 @@
 # VitaScan Architecture Overview
 
-VitaScan is a portfolio-ready educational health guidance MVP built as a pnpm monorepo.
+VitaScan is an educational health guidance MVP built as a pnpm monorepo.
 
-## Web App
+## Next.js Web
 
 The web app uses Next.js App Router, React, and Tailwind CSS. It owns the user-facing flows:
 
-- Home page and entry points for guest or logged-in use
+- Landing page and entry points for guest or logged-in use
 - Google login through Supabase Auth
-- Dashboard for usage counts and saved sessions
-- Profile create/update flow
-- Symptom check flow
-- Saved session detail, print/copy actions, recipes, and chat where enabled
+- Dashboard with usage counts and saved sessions
+- Health profile create/update
+- Symptom check wizard
+- Saved session detail with print/copy/delete
+- Recipes and post-triage chat for saved sessions
+- Friendly error and empty states for demo stability
 
-## API
+## NestJS API
 
-The API is a NestJS TypeScript service. It coordinates server-side business logic for:
+The API is a NestJS TypeScript service. It coordinates:
 
 - Symptom analysis requests
-- Saved session creation and retrieval
-- Health profile reads and writes
+- Rule-based red-flag overrides
+- Saved session creation, listing, detail, and deletion
+- Health profile reads/writes
 - Usage limit checks
-- Follow-up chat and recipe endpoints where enabled
-- Deployment health checks through `/health`
+- Recipe recommendations
+- Post-triage chat
+- Health diagnostics through `/health` and `/health/deep`
 
-## Supabase
+## Supabase Auth and Database
 
-Supabase provides authentication and Postgres storage.
+Supabase provides Google authentication and Postgres storage.
 
-- Supabase Auth handles Google login.
-- Postgres stores profiles, symptom sessions, usage records, and related chat/session data.
+- Supabase Auth manages user sessions.
+- Postgres stores users, health profiles, symptom sessions, usage counters, recipes, chat threads/messages, and knowledge-base documents.
 - Row-level security keeps user-owned records scoped to the authenticated user.
-- The API uses service credentials for trusted server-side operations.
+- The API uses service-role access for trusted server-side operations.
 
-## AI Provider
+## AI Provider and RAG
 
-The AI layer uses Groq for educational symptom guidance and follow-up chat. Responses are treated as user guidance, not medical diagnosis. The API wraps AI calls with product guardrails, usage limits, and saved-session context.
+Groq powers structured symptom guidance and follow-up chat. A lightweight RAG layer uses `pgvector`:
 
-## Saved Session, Profile, and Usage Flow
+1. Educational knowledge-base documents are stored in `kb_documents`.
+2. Chunks and embeddings are stored in `kb_embeddings`.
+3. The API retrieves relevant chunks before symptom analysis and chat.
+4. Retrieved chunks are included as trusted reference context in prompts.
+
+RAG is used for grounding only. The UI does not yet expose citations.
+
+## Saved-Session Flow
 
 1. A user starts as a guest or signs in with Google.
-2. A logged-in user can save a health profile with basic demographic and health context.
-3. The symptom check sends answers, profile context, and auth state to the API.
-4. The API checks usage limits, calls the AI provider, and returns structured guidance.
-5. For logged-in users, the result is saved as a session linked to their account.
-6. The dashboard loads saved sessions, usage counts, and profile prompts.
-7. Session detail pages can show recommendations, emergency guidance, answers, profile snapshots, recipes, and follow-up chat where enabled.
+2. A logged-in user can save a health profile.
+3. The symptom check sends answers, optional profile context, and auth state to the API.
+4. The API checks limits, retrieves KB context, calls the AI provider, applies red-flag overrides, and returns guidance.
+5. Logged-in results are saved as symptom sessions.
+6. The dashboard loads lightweight session summaries.
+7. Detail pages load full saved-session data, recipes, and chat where enabled.
 
-## Safety Positioning
+## Privacy and Security Basics
 
-VitaScan is educational only. It does not diagnose, prescribe, or replace professional care. Emergency and red-flag guidance is surfaced prominently when symptoms may require immediate attention.
+- Educational-only positioning; no diagnosis or prescription claims.
+- Protected API routes for profile, saved sessions, recipes, usage, and chat.
+- Supabase RLS for user-owned data.
+- CORS restricted by `WEB_ORIGIN` in production.
+- Basic rate limiting on sensitive write/action endpoints.
+- Structured API logging without request bodies or health details.
+- Security headers and public health diagnostics.

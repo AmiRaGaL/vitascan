@@ -4,30 +4,32 @@ Use this as a 2-3 minute walkthrough for portfolio reviews, recorded demos, or l
 
 ## 1. Problem
 
-"VitaScan is an educational symptom triage MVP for people who are unsure what to do next when they notice symptoms. The goal is not to diagnose, but to help users organize their symptoms, understand red flags, and decide whether home care, primary care, urgent care, or emergency care may be appropriate."
+"VitaScan is an educational symptom triage MVP for people who are unsure what to do next when they notice symptoms. The goal is not to diagnose, but to help users organize symptoms, understand red flags, and decide whether home care, primary care, urgent care, or emergency care may be appropriate."
 
-## 2. Product Overview
+## 2. Login and Profile
 
-"The app includes a Next.js web experience, a NestJS API, Supabase authentication and database storage, and an AI provider for structured educational guidance. Users can continue as guests with limits or log in to save their health profile and symptom sessions."
+"I will log in with Google through Supabase Auth and land on the dashboard. From there, I can create or update a basic health profile with age, sex assigned at birth, medications, allergies, chronic conditions, and diet preferences. The app also reminds users to only save information they are comfortable sharing."
 
-## 3. Live Flow
+## 3. Symptom Check
 
-"I will start by logging in with Google, then open the dashboard. From there I can create or update a health profile with basic context like age, medications, allergies, chronic conditions, and diet preferences."
+"Next I will start a symptom check. The flow asks for a body area, symptom category, guided answers, and optional profile context. The API applies usage limits, retrieves relevant knowledge-base context, asks the AI provider for structured educational guidance, and then applies rule-based red-flag overrides."
 
-"Next I will run a symptom check. The flow asks guided questions, optionally uses profile context, and returns a structured result with a recommended level of care, red flags, and a plain-language summary."
+## 4. Saved Session
 
-"Because I am logged in, the session is saved. I can return to the dashboard, search or filter past sessions, open a session detail page, copy or print the summary, and delete it when I no longer need it."
+"Because I am logged in, the result is saved. I can open the session detail page to review the recommended level of care, red-flag guidance, summary, answers, and profile snapshot. I can also copy, print, or delete the session."
 
-"If enabled in the environment, the session page also includes wellness recipe suggestions and a follow-up chat for questions about the saved session."
+## 5. Recipes and Chat
 
-## 4. Safety Guardrails
+"For saved sessions, VitaScan can show wellness recipe suggestions when relevant. It also includes post-triage chat, where the user can ask follow-up questions about the saved session. Chat responses use the saved session and retrieved knowledge-base context, while staying educational."
 
-"The safety model is explicit: VitaScan is educational only and does not provide a diagnosis, prescription, or replacement for medical care. Severe or sudden symptoms trigger emergency guidance, and the interface consistently reminds users to contact local emergency services for red flags."
+## 6. Safety Guardrails
 
-## 5. Technical Stack
+"The safety model is explicit: VitaScan is educational only and does not provide a diagnosis, prescription, or replacement for medical care. Severe, sudden, or worsening symptoms surface emergency guidance and tell users to contact local emergency services."
 
-"The frontend is built with Next.js App Router, React, and Tailwind CSS. The backend is a NestJS API in TypeScript. Supabase handles Google auth, Postgres storage, and row-level security for user-owned data. The AI layer calls Groq for symptom guidance and follow-up chat. The monorepo uses pnpm workspaces."
+## 7. Technical Stack
 
-## 6. Future Work
+"The frontend is built with Next.js App Router, React, and Tailwind CSS. The backend is a NestJS API in TypeScript. Supabase handles Google auth, Postgres storage, and row-level security. Groq powers AI responses, and pgvector supports lightweight RAG grounding. The monorepo uses pnpm workspaces."
 
-"Future work would add retrieval-augmented generation with pgvector, a mobile app, clinical validation, stronger compliance and security controls, and premium usage limits for heavier symptom-check and chat usage."
+## 8. Future Work
+
+"Future work would include mobile, clinical validation, stronger compliance and audit workflows, deeper RAG validation and citations, monitoring improvements, and premium limits or billing if the product direction needs it."
