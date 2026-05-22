@@ -6,6 +6,8 @@ import { ApiExceptionFilter } from './security/api-exception.filter';
 
 dotenv.config();
 
+const REQUIRED_PRODUCTION_WEB_ORIGIN = 'https://vitascan-web-rho.vercel.app';
+
 async function bootstrap() {
   validateProductionEnv();
 
@@ -16,11 +18,14 @@ async function bootstrap() {
   const allowedOrigins = getAllowedOrigins();
   app.enableCors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
+      const normalizedOrigin = normalizeOrigin(origin);
+
+      if (!normalizedOrigin || allowedOrigins.includes(normalizedOrigin)) {
         callback(null, true);
         return;
       }
 
+      logRejectedCorsOrigin(normalizedOrigin);
       callback(new Error('Not allowed by CORS'));
     },
     credentials: true,
@@ -61,17 +66,42 @@ function validateProductionEnv() {
       `Missing required production environment variables: ${missingEnvVars.join(', ')}`,
     );
   }
+
+  const configuredOrigins = parseConfiguredWebOrigins();
+  if (!configuredOrigins.includes(REQUIRED_PRODUCTION_WEB_ORIGIN)) {
+    throw new Error(
+      `WEB_ORIGIN must include ${REQUIRED_PRODUCTION_WEB_ORIGIN}`,
+    );
+  }
 }
 
 function getAllowedOrigins() {
-  const configuredOrigins = (process.env.WEB_ORIGIN ?? '')
-    .split(',')
-    .map((origin) => origin.trim().replace(/\/$/, ''))
-    .filter(Boolean);
+  const configuredOrigins = parseConfiguredWebOrigins();
 
   if (process.env.NODE_ENV === 'production') return configuredOrigins;
 
   return [...configuredOrigins, ...getLocalhostOrigins()];
+}
+
+function parseConfiguredWebOrigins() {
+  return (process.env.WEB_ORIGIN ?? '')
+    .split(',')
+    .map(normalizeOrigin)
+    .filter((origin): origin is string => Boolean(origin));
+}
+
+function normalizeOrigin(origin: string | undefined) {
+  return origin?.trim().replace(/\/+$/, '');
+}
+
+function logRejectedCorsOrigin(origin: string) {
+  console.warn(
+    JSON.stringify({
+      timestamp: new Date().toISOString(),
+      message: 'Rejected CORS origin',
+      origin,
+    }),
+  );
 }
 
 function getLocalhostOrigins() {

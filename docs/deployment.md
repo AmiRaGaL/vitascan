@@ -42,7 +42,7 @@ PORT=
 NODE_ENV=
 ```
 
-Set `WEB_ORIGIN` to the deployed Vercel URL, for example `https://YOUR_VERCEL_DOMAIN`. For multiple allowed web origins, use a comma-separated list. The API also keeps localhost CORS fallbacks for development.
+Set `WEB_ORIGIN` to the deployed Vercel URL. Production must include `https://vitascan-web-rho.vercel.app`. For multiple allowed web origins, use a comma-separated list. The API also keeps localhost CORS fallbacks for development.
 
 Confirm the deployed health endpoint works:
 
