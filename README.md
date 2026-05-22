@@ -116,12 +116,17 @@ NEXT_PUBLIC_API_URL=
 
 - MVP feature checklist: [docs/mvp-feature-checklist.md](docs/mvp-feature-checklist.md)
 - Demo script: [docs/demo-script.md](docs/demo-script.md)
+- Demo recording checklist: [docs/demo-recording-checklist.md](docs/demo-recording-checklist.md)
 - Architecture overview: [docs/architecture.md](docs/architecture.md)
 - Deployment guide: [docs/deployment.md](docs/deployment.md)
 - Monitoring notes: [docs/monitoring.md](docs/monitoring.md)
 - Launch backlog: [docs/launch-backlog.md](docs/launch-backlog.md)
 - Manual QA checklist: [docs/qa-checklist.md](docs/qa-checklist.md)
 - Screenshot guide: [docs/screenshots/README.md](docs/screenshots/README.md)
+
+## Demo Visuals
+
+Screenshots for README, portfolio, GitHub, and demo sharing live in [docs/screenshots](docs/screenshots). Screenshots are listed in [docs/screenshots/README.md](docs/screenshots/README.md) and can be captured from the production demo.
 
 ## Roadmap
 

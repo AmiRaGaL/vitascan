@@ -1,6 +1,6 @@
 # VitaScan MVP Demo Script
 
-Use this as a 2-3 minute walkthrough for portfolio reviews, recorded demos, or live project discussions.
+Use this as a 3-5 minute walkthrough for portfolio reviews, recorded demos, or live project discussions.
 
 ## 1. Problem
 
@@ -33,3 +33,18 @@ Use this as a 2-3 minute walkthrough for portfolio reviews, recorded demos, or l
 ## 8. Future Work
 
 "Future work would include mobile, clinical validation, stronger compliance and audit workflows, deeper RAG validation and citations, monitoring improvements, and premium limits or billing if the product direction needs it."
+
+## Short Recording Flow
+
+1. Start on the landing page.
+2. Point out the educational-only disclaimer: VitaScan does not diagnose, treat, or replace professional care.
+3. Run a guest symptom check with synthetic demo data.
+4. Show the triage result, summary, red flags, home-care guidance, and doctor preparation guidance.
+5. If available, show a red-flag safety scenario and the emergency guidance behavior.
+6. Log in with the demo account.
+7. Show the dashboard with saved sessions and usage context.
+8. Save or update a synthetic health profile.
+9. Open a saved session and review the triage result and summary.
+10. Show the recipes section or the clean empty state.
+11. Send one follow-up chat message and show the saved user/AI messages.
+12. End with a brief architecture summary: Next.js web, NestJS API, Supabase Auth/Postgres/RLS, Groq, pgvector RAG, and pnpm workspaces.
