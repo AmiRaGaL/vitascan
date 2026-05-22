@@ -49,10 +49,6 @@ export default function SessionChatPage() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!loading && isGuest) router.push("/");
-  }, [loading, isGuest, router]);
-
   const getAuthHeaders = useCallback(async () => {
     const supabase = createClient();
     const {
@@ -174,7 +170,7 @@ export default function SessionChatPage() {
     }
   };
 
-  if (loading || initialLoading) {
+  if (loading || (!isGuest && initialLoading)) {
     return (
       <div className="flex min-h-[calc(100vh-64px)] items-center justify-center">
         <div className="h-10 w-10 animate-spin rounded-full border-b-2 border-blue-600" />
@@ -182,7 +178,21 @@ export default function SessionChatPage() {
     );
   }
 
-  if (isGuest) return null;
+  if (isGuest) {
+    return (
+      <div className="mx-auto max-w-3xl px-4 py-10">
+        <Link href="/symptom-check" className="text-sm text-blue-600 hover:underline">
+          Back to symptom check
+        </Link>
+        <div className="mt-6">
+          <EmptyState
+            title="Sign in to use follow-up chat"
+            description="Follow-up chat is available for saved symptom checks after you sign in."
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto flex min-h-[calc(100vh-64px)] max-w-3xl flex-col px-4 py-8">

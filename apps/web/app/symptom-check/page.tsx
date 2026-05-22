@@ -23,8 +23,20 @@ interface SymptomCategory {
 interface SymptomQuestion {
   id: string;
   question_text: string;
-  question_type: "single_choice" | "multiple_choice";
-  options: string[];
+  question_type:
+    | "single_choice"
+    | "multiple_choice"
+    | "multi_choice"
+    | "scale"
+    | "duration";
+  options:
+    | string[]
+    | {
+        min?: number;
+        max?: number;
+        minLabel?: string;
+        maxLabel?: string;
+      };
 }
 
 interface UserAnswer {
@@ -221,7 +233,7 @@ export default function SymptomChecker() {
         question_id: q.id,
         question_text: q.question_text,
         answer:
-          answers[q.id] || (q.question_type === "multiple_choice" ? [] : ""),
+          answers[q.id] || (isMultiChoiceQuestion(q) ? [] : ""),
       }));
 
       const parseList = (value: string): string[] => {
@@ -491,21 +503,27 @@ export default function SymptomChecker() {
               </p>
 
               <div className="space-y-3">
-                {symptoms.map((symptom) => (
-                  <button
-                    key={symptom.id}
-                    onClick={() => handleSymptomSelect(symptom)}
-                    className="w-full p-5 border-2 border-gray-200 rounded-xl hover:border-blue-500 hover:bg-blue-50 
+                {symptoms.length === 0 ? (
+                  <p className="rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-500">
+                    No symptoms are available for this body area right now.
+                  </p>
+                ) : (
+                  symptoms.map((symptom) => (
+                    <button
+                      key={symptom.id}
+                      onClick={() => handleSymptomSelect(symptom)}
+                      className="w-full p-5 border-2 border-gray-200 rounded-xl hover:border-blue-500 hover:bg-blue-50 
                                transition-all text-left"
-                  >
-                    <h3 className="font-semibold text-lg text-gray-900">
-                      {symptom.name}
-                    </h3>
-                    <p className="text-sm text-gray-600 mt-1">
-                      {symptom.description}
-                    </p>
-                  </button>
-                ))}
+                    >
+                      <h3 className="font-semibold text-lg text-gray-900">
+                        {symptom.name}
+                      </h3>
+                      <p className="text-sm text-gray-600 mt-1">
+                        {symptom.description}
+                      </p>
+                    </button>
+                  ))
+                )}
               </div>
             </div>
           )}
@@ -524,17 +542,28 @@ export default function SymptomChecker() {
               </h2>
               <p className="text-gray-600 mb-6">{selectedSymptom?.name}</p>
 
-              <div className="space-y-6">
-                {questions.map((q, idx) => (
+              {questions.length === 0 ? (
+                <p className="rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-500">
+                  No follow-up questions are available for this symptom right
+                  now.
+                </p>
+              ) : (
+                <div className="space-y-6">
+                  {questions.map((q, idx) => {
+                    const options = getQuestionOptions(q);
+                    const scaleOptions = getScaleOptions(q);
+
+                    return (
                   <div key={q.id} className="p-5 bg-gray-50 rounded-xl">
                     <label className="block font-semibold text-gray-900 mb-3">
                       {idx + 1}. {q.question_text}{" "}
                       <span className="text-red-500">*</span>
                     </label>
 
-                    {q.question_type === "single_choice" && (
+                    {(q.question_type === "single_choice" ||
+                      q.question_type === "duration") && (
                       <div className="space-y-2">
-                        {q.options.map((option) => (
+                        {options.map((option) => (
                           <label
                             key={option}
                             className="flex items-center p-3 bg-white rounded-lg cursor-pointer hover:bg-blue-50 border-2 border-transparent hover:border-blue-300"
@@ -558,9 +587,9 @@ export default function SymptomChecker() {
                       </div>
                     )}
 
-                    {q.question_type === "multiple_choice" && (
+                    {isMultiChoiceQuestion(q) && (
                       <div className="space-y-2">
-                        {q.options.map((option) => (
+                        {options.map((option) => (
                           <label
                             key={option}
                             className="flex items-center p-3 bg-white rounded-lg cursor-pointer hover:bg-blue-50 border-2 border-transparent hover:border-blue-300"
@@ -588,13 +617,54 @@ export default function SymptomChecker() {
                         ))}
                       </div>
                     )}
+
+                    {q.question_type === "scale" && (
+                      <div>
+                        <div className="flex items-center gap-4">
+                          <span className="text-sm text-gray-600">
+                            {scaleOptions.min}
+                          </span>
+                          <input
+                            type="range"
+                            min={scaleOptions.min}
+                            max={scaleOptions.max}
+                            value={
+                              typeof answers[q.id] === "string"
+                                ? (answers[q.id] as string)
+                                : String(scaleOptions.min)
+                            }
+                            onChange={(e) =>
+                              setAnswers({
+                                ...answers,
+                                [q.id]: e.target.value,
+                              })
+                            }
+                            className="flex-1"
+                          />
+                          <span className="text-sm text-gray-600">
+                            {scaleOptions.max}
+                          </span>
+                          <output className="min-w-8 rounded bg-white px-2 py-1 text-center font-semibold text-gray-900">
+                            {typeof answers[q.id] === "string"
+                              ? answers[q.id]
+                              : scaleOptions.min}
+                          </output>
+                        </div>
+                        <div className="mt-2 flex justify-between text-xs text-gray-500">
+                          <span>{scaleOptions.minLabel}</span>
+                          <span>{scaleOptions.maxLabel}</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                ))}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
 
               <button
                 onClick={() => setStep("health-profile")}
-                disabled={!allQuestionsAnswered()}
+                disabled={questions.length === 0 || !allQuestionsAnswered()}
                 className="mt-6 w-full bg-blue-600 text-white py-4 rounded-xl font-semibold hover:bg-blue-700 
                            disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
@@ -868,4 +938,33 @@ export default function SymptomChecker() {
 
 function joinList(value: string[] | null) {
   return value?.join(", ") ?? "";
+}
+
+function isMultiChoiceQuestion(question: SymptomQuestion) {
+  return (
+    question.question_type === "multiple_choice" ||
+    question.question_type === "multi_choice"
+  );
+}
+
+function getQuestionOptions(question: SymptomQuestion) {
+  return Array.isArray(question.options) ? question.options : [];
+}
+
+function getScaleOptions(question: SymptomQuestion) {
+  if (Array.isArray(question.options)) {
+    return {
+      min: 0,
+      max: 10,
+      minLabel: "Low",
+      maxLabel: "High",
+    };
+  }
+
+  return {
+    min: question.options.min ?? 0,
+    max: question.options.max ?? 10,
+    minLabel: question.options.minLabel ?? "Low",
+    maxLabel: question.options.maxLabel ?? "High",
+  };
 }
