@@ -17,7 +17,7 @@ export function Navbar() {
             onClick={loginWithGoogle}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition"
           >
-            Login with Google
+            Sign in with Google
           </button>
         ) : (
           <div className="flex items-center gap-3">

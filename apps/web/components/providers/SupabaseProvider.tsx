@@ -87,7 +87,7 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
         // Only fetch tier when session is fully stable
         // SIGNED_IN fires too early (cookies not propagated yet)
         if (event === "INITIAL_SESSION" || event === "TOKEN_REFRESHED") {
-          fetchTier(session.user.id); // fire and forget — won't block UI
+          fetchTier(session.user.id); // fire and forget, won't block UI
         } else {
           // SIGNED_IN: default to 'free', tier updates on next stable load
           setTier("free");

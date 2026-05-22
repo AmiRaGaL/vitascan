@@ -7,8 +7,8 @@ import { Navbar } from "@/components/Navbar";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "VitaScan — Symptom Checker",
-  description: "AI-powered symptom triage and health guidance",
+  title: "VitaScan | Symptom Checker",
+  description: "Guided symptom support and educational next-step guidance",
 };
 
 export default function RootLayout({
