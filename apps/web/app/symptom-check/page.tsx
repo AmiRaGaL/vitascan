@@ -1,6 +1,19 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  Activity,
+  Apple,
+  Bandage,
+  Bone,
+  Brain,
+  Droplets,
+  Dumbbell,
+  HeartPulse,
+  Moon,
+  Wind,
+  type LucideIcon,
+} from "lucide-react";
 import { ErrorState } from "@/components/ErrorState";
 import { MedicalDisclaimer } from "@/components/MedicalDisclaimer";
 import { apiFetch } from "@/lib/api";
@@ -73,6 +86,12 @@ type Step =
   | "health-profile"
   | "results";
 
+const STEP_LABELS: Array<{ key: Step; label: string }> = [
+  { key: "body-area", label: "Body Area" },
+  { key: "symptom", label: "Symptom" },
+  { key: "questions", label: "Questions" },
+  { key: "health-profile", label: "Health Info" },
+];
 
 export default function SymptomChecker() {
   const router = useRouter();
@@ -232,8 +251,7 @@ export default function SymptomChecker() {
       const userAnswers: UserAnswer[] = questions.map((q) => ({
         question_id: q.id,
         question_text: q.question_text,
-        answer:
-          answers[q.id] || (isMultiChoiceQuestion(q) ? [] : ""),
+        answer: answers[q.id] || (isMultiChoiceQuestion(q) ? [] : ""),
       }));
 
       const parseList = (value: string): string[] => {
@@ -242,7 +260,10 @@ export default function SymptomChecker() {
         if (normalized === "none" || normalized === "prefer not to say") {
           return [];
         }
-        return value.split(",").map((s) => s.trim()).filter(Boolean);
+        return value
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean);
       };
 
       const profilePayload = {
@@ -338,89 +359,94 @@ export default function SymptomChecker() {
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 p-4 md:p-8">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">
-            VitaScan AI Triage
+    <main className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 px-4 py-8 md:px-8">
+      <div className="mx-auto max-w-5xl">
+        <div className="mb-8 rounded-[2rem] border border-white/80 bg-white/85 p-6 text-center shadow-xl shadow-blue-950/10 backdrop-blur md:p-8">
+          <div className="mx-auto mb-4 inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700">
+            <HeartPulse className="h-4 w-4" aria-hidden="true" />
+            Guided symptom support
+          </div>
+          <h1 className="text-4xl font-bold tracking-normal text-gray-950 md:text-5xl">
+            Guided symptom check
           </h1>
-          <p className="text-gray-600">
-            Intelligent symptom assessment powered by AI
+          <p className="mx-auto mt-3 max-w-2xl text-base leading-7 text-gray-600 md:text-lg">
+            Answer a few questions and get educational next-step guidance.
           </p>
-          <p className="mx-auto mt-3 max-w-2xl rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-            Only share information you&apos;re comfortable saving. You can delete
-            saved sessions from your dashboard.
+          <p className="mx-auto mt-4 max-w-2xl rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+            Only share what you are comfortable sharing. You can delete saved
+            sessions from your dashboard.
           </p>
         </div>
 
-        {isLoggedIn && hasSavedProfile === false && !profileReminderDismissed && (
-          <div className="mb-6 rounded-xl border border-blue-100 bg-blue-50 p-4 text-blue-900">
-            <div className="flex gap-4">
-              <div className="flex-1">
-                <h2 className="font-semibold">
-                  Complete your profile for better symptom guidance.
-                </h2>
-                <p className="mt-1 text-sm text-blue-700">
-                  You can still continue here, or fill it out once in your
-                  profile.
-                </p>
+        {isLoggedIn &&
+          hasSavedProfile === false &&
+          !profileReminderDismissed && (
+            <div className="mb-6 rounded-xl border border-blue-100 bg-blue-50 p-4 text-blue-900">
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <h2 className="font-semibold">
+                    Complete your profile for better symptom guidance.
+                  </h2>
+                  <p className="mt-1 text-sm text-blue-700">
+                    You can still continue here, or fill it out once in your
+                    profile.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setProfileReminderDismissed(true)}
+                  className="text-sm font-medium text-blue-700 hover:text-blue-900"
+                >
+                  Dismiss
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => setProfileReminderDismissed(true)}
-                className="text-sm font-medium text-blue-700 hover:text-blue-900"
-              >
-                Dismiss
-              </button>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Progress Bar */}
         {step !== "results" && (
-          <div className="mb-8">
-            <div className="flex justify-between items-center mb-2">
-              {["Body Area", "Symptom", "Questions", "Health Info"].map(
-                (label, idx) => {
-                  const steps: Step[] = [
-                    "body-area",
-                    "symptom",
-                    "questions",
-                    "health-profile",
-                  ];
-                  const currentIdx = steps.indexOf(step);
-                  const isActive = idx === currentIdx;
-                  const isComplete = idx < currentIdx;
+          <div className="mb-8 rounded-2xl border border-white/80 bg-white/80 p-4 shadow-sm backdrop-blur">
+            <div className="grid grid-cols-4 gap-2">
+              {STEP_LABELS.map(({ key, label }, idx) => {
+                const currentIdx = STEP_LABELS.findIndex(
+                  (item) => item.key === step,
+                );
+                const isActive = idx === currentIdx;
+                const isComplete = idx < currentIdx;
 
-                  return (
-                    <div key={label} className="flex items-center flex-1">
-                      <div
-                        className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold
-                      ${isComplete ? "bg-green-500 text-white" : isActive ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-500"}`}
-                      >
-                        {isComplete ? "✓" : idx + 1}
-                      </div>
-                      <span
-                        className={`ml-2 text-sm hidden md:inline ${isActive ? "font-semibold text-blue-600" : "text-gray-500"}`}
-                      >
-                        {label}
-                      </span>
-                      {idx < 3 && (
-                        <div
-                          className={`flex-1 h-1 mx-2 ${isComplete ? "bg-green-500" : "bg-gray-200"}`}
-                        />
-                      )}
+                return (
+                  <div
+                    key={key}
+                    className={`rounded-xl border p-3 text-center transition ${
+                      isActive
+                        ? "border-blue-200 bg-blue-50 text-blue-800"
+                        : isComplete
+                          ? "border-green-200 bg-green-50 text-green-800"
+                          : "border-gray-100 bg-white text-gray-500"
+                    }`}
+                    aria-current={isActive ? "step" : undefined}
+                  >
+                    <div
+                      className={`mx-auto mb-2 flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold ${
+                        isActive
+                          ? "bg-blue-600 text-white"
+                          : isComplete
+                            ? "bg-green-600 text-white"
+                            : "bg-gray-100 text-gray-500"
+                      }`}
+                    >
+                      {isComplete ? "✓" : idx + 1}
                     </div>
-                  );
-                },
-              )}
+                    <span className="text-xs font-semibold md:text-sm">
+                      {label}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
 
-        {/* Step Content */}
-        <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8">
+        <div className="rounded-[2rem] border border-white/80 bg-white/95 p-6 shadow-2xl shadow-blue-950/10 md:p-8">
           {flowError && (
             <div className="mb-6">
               <ErrorState message={flowError} />
@@ -437,11 +463,11 @@ export default function SymptomChecker() {
           {/* Step 1: Body Area Selection */}
           {step === "body-area" && !loading && (
             <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">
+              <h2 className="mb-2 text-2xl font-bold text-gray-950">
                 Where are you experiencing symptoms?
               </h2>
-              <p className="text-gray-600 mb-6">
-                Select the area of your body that&apos;s affected
+              <p className="mb-6 text-gray-600">
+                Choose the area that feels most relevant right now.
               </p>
 
               {bodyAreasError ? (
@@ -460,28 +486,16 @@ export default function SymptomChecker() {
                   No symptom categories are available right now.
                 </p>
               ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {bodyAreas.map((area) => (
-                  <button
-                    key={area.id}
-                    onClick={() => handleBodyAreaSelect(area)}
-                    className="p-6 border-2 border-gray-200 rounded-xl hover:border-blue-500 hover:bg-blue-50 
-                               transition-all text-left group"
-                  >
-                    <div className="flex items-start">
-                      <span className="text-4xl mr-4">{area.icon}</span>
-                      <div>
-                        <h3 className="font-semibold text-lg text-gray-900 group-hover:text-blue-600">
-                          {area.name}
-                        </h3>
-                        <p className="text-sm text-gray-600 mt-1">
-                          {area.description}
-                        </p>
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  {bodyAreas.map((area) => (
+                    <BodyAreaCard
+                      key={area.id}
+                      area={area}
+                      selected={selectedBodyArea?.id === area.id}
+                      onSelect={() => handleBodyAreaSelect(area)}
+                    />
+                  ))}
+                </div>
               )}
             </div>
           )}
@@ -491,14 +505,14 @@ export default function SymptomChecker() {
             <div>
               <button
                 onClick={() => setStep("body-area")}
-                className="text-blue-600 mb-4 flex items-center hover:text-blue-700"
+                className="mb-4 flex items-center rounded-lg px-2 py-1 text-blue-600 transition hover:bg-blue-50 hover:text-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
               >
                 ← Back
               </button>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">
+              <h2 className="mb-2 text-2xl font-bold text-gray-950">
                 What symptom are you experiencing?
               </h2>
-              <p className="text-gray-600 mb-6">
+              <p className="mb-6 text-gray-600">
                 In <strong>{selectedBodyArea?.name}</strong>
               </p>
 
@@ -512,10 +526,9 @@ export default function SymptomChecker() {
                     <button
                       key={symptom.id}
                       onClick={() => handleSymptomSelect(symptom)}
-                      className="w-full p-5 border-2 border-gray-200 rounded-xl hover:border-blue-500 hover:bg-blue-50 
-                               transition-all text-left"
+                      className="w-full rounded-2xl border border-gray-200 bg-white p-5 text-left shadow-sm transition hover:border-blue-300 hover:bg-blue-50 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
                     >
-                      <h3 className="font-semibold text-lg text-gray-900">
+                      <h3 className="text-lg font-semibold text-gray-950">
                         {symptom.name}
                       </h3>
                       <p className="text-sm text-gray-600 mt-1">
@@ -533,11 +546,11 @@ export default function SymptomChecker() {
             <div>
               <button
                 onClick={() => setStep("symptom")}
-                className="text-blue-600 mb-4 flex items-center hover:text-blue-700"
+                className="mb-4 flex items-center rounded-lg px-2 py-1 text-blue-600 transition hover:bg-blue-50 hover:text-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
               >
                 ← Back
               </button>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">
+              <h2 className="mb-2 text-2xl font-bold text-gray-950">
                 Tell us more about your symptoms
               </h2>
               <p className="text-gray-600 mb-6">{selectedSymptom?.name}</p>
@@ -554,109 +567,112 @@ export default function SymptomChecker() {
                     const scaleOptions = getScaleOptions(q);
 
                     return (
-                  <div key={q.id} className="p-5 bg-gray-50 rounded-xl">
-                    <label className="block font-semibold text-gray-900 mb-3">
-                      {idx + 1}. {q.question_text}{" "}
-                      <span className="text-red-500">*</span>
-                    </label>
+                      <div
+                        key={q.id}
+                        className="rounded-2xl border border-gray-100 bg-gray-50 p-5"
+                      >
+                        <label className="block font-semibold text-gray-900 mb-3">
+                          {idx + 1}. {q.question_text}{" "}
+                          <span className="text-red-500">*</span>
+                        </label>
 
-                    {(q.question_type === "single_choice" ||
-                      q.question_type === "duration") && (
-                      <div className="space-y-2">
-                        {options.map((option) => (
-                          <label
-                            key={option}
-                            className="flex items-center p-3 bg-white rounded-lg cursor-pointer hover:bg-blue-50 border-2 border-transparent hover:border-blue-300"
-                          >
-                            <input
-                              type="radio"
-                              name={q.id}
-                              value={option}
-                              checked={answers[q.id] === option}
-                              onChange={(e) =>
-                                setAnswers({
-                                  ...answers,
-                                  [q.id]: e.target.value,
-                                })
-                              }
-                              className="mr-3 w-4 h-4 text-blue-600"
-                            />
-                            <span>{option}</span>
-                          </label>
-                        ))}
-                      </div>
-                    )}
+                        {(q.question_type === "single_choice" ||
+                          q.question_type === "duration") && (
+                          <div className="space-y-2">
+                            {options.map((option) => (
+                              <label
+                                key={option}
+                                className="flex cursor-pointer items-center rounded-xl border border-transparent bg-white p-3 transition hover:border-blue-200 hover:bg-blue-50"
+                              >
+                                <input
+                                  type="radio"
+                                  name={q.id}
+                                  value={option}
+                                  checked={answers[q.id] === option}
+                                  onChange={(e) =>
+                                    setAnswers({
+                                      ...answers,
+                                      [q.id]: e.target.value,
+                                    })
+                                  }
+                                  className="mr-3 w-4 h-4 text-blue-600"
+                                />
+                                <span>{option}</span>
+                              </label>
+                            ))}
+                          </div>
+                        )}
 
-                    {isMultiChoiceQuestion(q) && (
-                      <div className="space-y-2">
-                        {options.map((option) => (
-                          <label
-                            key={option}
-                            className="flex items-center p-3 bg-white rounded-lg cursor-pointer hover:bg-blue-50 border-2 border-transparent hover:border-blue-300"
-                          >
-                            <input
-                              type="checkbox"
-                              value={option}
-                              checked={(
-                                (answers[q.id] as string[]) || []
-                              ).includes(option)}
-                              onChange={(e) => {
-                                const current =
-                                  (answers[q.id] as string[]) || [];
-                                setAnswers({
-                                  ...answers,
-                                  [q.id]: e.target.checked
-                                    ? [...current, option]
-                                    : current.filter((v) => v !== option),
-                                });
-                              }}
-                              className="mr-3 w-4 h-4 text-blue-600"
-                            />
-                            <span>{option}</span>
-                          </label>
-                        ))}
-                      </div>
-                    )}
+                        {isMultiChoiceQuestion(q) && (
+                          <div className="space-y-2">
+                            {options.map((option) => (
+                              <label
+                                key={option}
+                                className="flex cursor-pointer items-center rounded-xl border border-transparent bg-white p-3 transition hover:border-blue-200 hover:bg-blue-50"
+                              >
+                                <input
+                                  type="checkbox"
+                                  value={option}
+                                  checked={(
+                                    (answers[q.id] as string[]) || []
+                                  ).includes(option)}
+                                  onChange={(e) => {
+                                    const current =
+                                      (answers[q.id] as string[]) || [];
+                                    setAnswers({
+                                      ...answers,
+                                      [q.id]: e.target.checked
+                                        ? [...current, option]
+                                        : current.filter((v) => v !== option),
+                                    });
+                                  }}
+                                  className="mr-3 w-4 h-4 text-blue-600"
+                                />
+                                <span>{option}</span>
+                              </label>
+                            ))}
+                          </div>
+                        )}
 
-                    {q.question_type === "scale" && (
-                      <div>
-                        <div className="flex items-center gap-4">
-                          <span className="text-sm text-gray-600">
-                            {scaleOptions.min}
-                          </span>
-                          <input
-                            type="range"
-                            min={scaleOptions.min}
-                            max={scaleOptions.max}
-                            value={
-                              typeof answers[q.id] === "string"
-                                ? (answers[q.id] as string)
-                                : String(scaleOptions.min)
-                            }
-                            onChange={(e) =>
-                              setAnswers({
-                                ...answers,
-                                [q.id]: e.target.value,
-                              })
-                            }
-                            className="flex-1"
-                          />
-                          <span className="text-sm text-gray-600">
-                            {scaleOptions.max}
-                          </span>
-                          <output className="min-w-8 rounded bg-white px-2 py-1 text-center font-semibold text-gray-900">
-                            {typeof answers[q.id] === "string"
-                              ? answers[q.id]
-                              : scaleOptions.min}
-                          </output>
-                        </div>
-                        <div className="mt-2 flex justify-between text-xs text-gray-500">
-                          <span>{scaleOptions.minLabel}</span>
-                          <span>{scaleOptions.maxLabel}</span>
-                        </div>
+                        {q.question_type === "scale" && (
+                          <div>
+                            <div className="flex items-center gap-4">
+                              <span className="text-sm text-gray-600">
+                                {scaleOptions.min}
+                              </span>
+                              <input
+                                type="range"
+                                min={scaleOptions.min}
+                                max={scaleOptions.max}
+                                value={
+                                  typeof answers[q.id] === "string"
+                                    ? (answers[q.id] as string)
+                                    : String(scaleOptions.min)
+                                }
+                                onChange={(e) =>
+                                  setAnswers({
+                                    ...answers,
+                                    [q.id]: e.target.value,
+                                  })
+                                }
+                                className="flex-1"
+                              />
+                              <span className="text-sm text-gray-600">
+                                {scaleOptions.max}
+                              </span>
+                              <output className="min-w-8 rounded bg-white px-2 py-1 text-center font-semibold text-gray-900">
+                                {typeof answers[q.id] === "string"
+                                  ? answers[q.id]
+                                  : scaleOptions.min}
+                              </output>
+                            </div>
+                            <div className="mt-2 flex justify-between text-xs text-gray-500">
+                              <span>{scaleOptions.minLabel}</span>
+                              <span>{scaleOptions.maxLabel}</span>
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
                     );
                   })}
                 </div>
@@ -665,8 +681,7 @@ export default function SymptomChecker() {
               <button
                 onClick={() => setStep("health-profile")}
                 disabled={questions.length === 0 || !allQuestionsAnswered()}
-                className="mt-6 w-full bg-blue-600 text-white py-4 rounded-xl font-semibold hover:bg-blue-700 
-                           disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="mt-6 w-full rounded-xl bg-blue-600 py-4 font-semibold text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Continue to Health Profile
               </button>
@@ -684,15 +699,15 @@ export default function SymptomChecker() {
             <div>
               <button
                 onClick={() => setStep("questions")}
-                className="text-blue-600 mb-4 flex items-center hover:text-blue-700"
+                className="mb-4 flex items-center rounded-lg px-2 py-1 text-blue-600 transition hover:bg-blue-50 hover:text-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
               >
                 ← Back
               </button>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">
+              <h2 className="mb-2 text-2xl font-bold text-gray-950">
                 Health Profile (Optional)
               </h2>
-              <p className="text-gray-600 mb-6">
-                This helps us provide more accurate recommendations
+              <p className="mb-6 text-gray-600">
+                Add only what feels useful. You can leave this blank.
               </p>
 
               <div className="space-y-4">
@@ -938,6 +953,94 @@ export default function SymptomChecker() {
 
 function joinList(value: string[] | null) {
   return value?.join(", ") ?? "";
+}
+
+function BodyAreaCard({
+  area,
+  selected,
+  onSelect,
+}: {
+  area: BodyArea;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  const Icon = getBodyAreaIcon(area.name);
+
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      aria-pressed={selected}
+      aria-label={`Choose ${area.name}`}
+      className={`group flex min-h-36 w-full items-start gap-4 rounded-2xl border p-5 text-left shadow-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${
+        selected
+          ? "border-blue-400 bg-blue-50 shadow-blue-100"
+          : "border-gray-200 bg-white hover:border-blue-300 hover:bg-blue-50 hover:shadow-md"
+      }`}
+    >
+      <span
+        className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl transition ${
+          selected
+            ? "bg-blue-600 text-white"
+            : "bg-blue-50 text-blue-700 group-hover:bg-blue-600 group-hover:text-white"
+        }`}
+        aria-hidden="true"
+      >
+        <Icon className="h-7 w-7" strokeWidth={2} />
+      </span>
+      <span className="min-w-0">
+        <span className="flex items-center gap-2 text-lg font-semibold text-gray-950">
+          {area.name}
+          {selected && (
+            <span className="rounded-full bg-blue-600 px-2 py-0.5 text-xs font-semibold text-white">
+              Selected
+            </span>
+          )}
+        </span>
+        <span className="mt-2 block text-sm leading-6 text-gray-600">
+          {area.description}
+        </span>
+      </span>
+    </button>
+  );
+}
+
+function getBodyAreaIcon(name: string): LucideIcon {
+  const normalized = name.toLowerCase();
+
+  if (normalized.includes("chest") || normalized.includes("breathing")) {
+    return Wind;
+  }
+  if (normalized.includes("head") || normalized.includes("neck")) {
+    return Brain;
+  }
+  if (normalized.includes("abdomen") || normalized.includes("digestion")) {
+    return Apple;
+  }
+  if (normalized.includes("back") || normalized.includes("spine")) {
+    return Bone;
+  }
+  if (
+    normalized.includes("arms") ||
+    normalized.includes("legs") ||
+    normalized.includes("joints")
+  ) {
+    return Dumbbell;
+  }
+  if (normalized.includes("skin") || normalized.includes("wounds")) {
+    return Bandage;
+  }
+  if (normalized.includes("urinary") || normalized.includes("pelvic")) {
+    return Droplets;
+  }
+  if (normalized.includes("mental") || normalized.includes("sleep")) {
+    return Moon;
+  }
+  if (normalized.includes("general") || normalized.includes("whole body")) {
+    return HeartPulse;
+  }
+
+  return Activity;
 }
 
 function isMultiChoiceQuestion(question: SymptomQuestion) {
