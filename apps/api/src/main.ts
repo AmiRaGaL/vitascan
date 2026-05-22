@@ -7,6 +7,8 @@ import { ApiExceptionFilter } from './security/api-exception.filter';
 dotenv.config();
 
 async function bootstrap() {
+  validateProductionEnv();
+
   const app = await NestFactory.create(AppModule);
   app.useGlobalFilters(new ApiExceptionFilter());
   app.use(applySecurityHeaders);
@@ -25,8 +27,40 @@ async function bootstrap() {
   });
 
   const port = process.env.PORT ?? 3000;
-  console.log(`VitaScan API running on port ${port}`);
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
+  console.log(
+    JSON.stringify({
+      timestamp: new Date().toISOString(),
+      message: 'VitaScan API started',
+      port,
+      nodeEnv: process.env.NODE_ENV ?? 'development',
+      corsOriginsConfigured: allowedOrigins.length,
+    }),
+  );
+}
+
+function validateProductionEnv() {
+  if (process.env.NODE_ENV !== 'production') return;
+
+  const requiredEnvVars = [
+    'SUPABASE_URL',
+    'SUPABASE_SERVICE_ROLE_KEY',
+    'SUPABASE_JWT_SECRET',
+    'GROQ_API_KEY',
+    'EMBEDDING_MODEL',
+    'WEB_ORIGIN',
+    'PORT',
+    'NODE_ENV',
+  ];
+  const missingEnvVars = requiredEnvVars.filter(
+    (name) => !process.env[name]?.trim(),
+  );
+
+  if (missingEnvVars.length > 0) {
+    throw new Error(
+      `Missing required production environment variables: ${missingEnvVars.join(', ')}`,
+    );
+  }
 }
 
 function getAllowedOrigins() {
@@ -100,4 +134,17 @@ function sanitizeRoute(route: string) {
   );
 }
 
-bootstrap();
+bootstrap().catch((error) => {
+  console.error(
+    JSON.stringify({
+      timestamp: new Date().toISOString(),
+      message: 'VitaScan API failed to start',
+      error: error instanceof Error ? error.message : 'Unknown startup error',
+      stack:
+        process.env.NODE_ENV === 'production' || !(error instanceof Error)
+          ? undefined
+          : error.stack,
+    }),
+  );
+  process.exit(1);
+});

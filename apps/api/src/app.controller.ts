@@ -6,16 +6,14 @@ export class AppController {
   constructor(private readonly supabase: SupabaseService) {}
 
   @Get('health')
-  async getHealth() {
-    const supabaseStatus = await this.checkSupabase();
-
+  getHealth() {
     return {
-      status: supabaseStatus.ok ? 'ok' : 'degraded',
+      status: 'ok',
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
       environment: process.env.NODE_ENV ?? 'development',
       supabase: {
-        status: supabaseStatus.ok ? 'ok' : 'degraded',
+        configured: Boolean(process.env.SUPABASE_URL),
       },
       ai: {
         configured: Boolean(process.env.GROQ_API_KEY),
@@ -50,13 +48,19 @@ export class AppController {
   }
 
   private async checkSupabase() {
-    const { error } = await this.supabase.supabase
-      .from('users')
-      .select('id')
-      .limit(1);
+    try {
+      const { error } = await this.supabase.supabase
+        .from('users')
+        .select('id')
+        .limit(1);
 
-    return {
-      ok: !error,
-    };
+      return {
+        ok: !error,
+      };
+    } catch {
+      return {
+        ok: false,
+      };
+    }
   }
 }

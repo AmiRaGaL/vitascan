@@ -1,25 +1,49 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
+import { SupabaseService } from './../src/supabase/supabase.service';
 
 describe('AppController (e2e)', () => {
-  let app: INestApplication<App>;
+  let app: INestApplication;
 
   beforeEach(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    })
+      .overrideProvider(SupabaseService)
+      .useValue({
+        supabase: {
+          from: jest.fn(),
+        },
+      })
+      .compile();
 
     app = moduleFixture.createNestApplication();
     await app.init();
   });
 
-  it('/ (GET)', () => {
-    return request(app.getHttpServer())
-      .get('/')
+  afterEach(async () => {
+    await app.close();
+  });
+
+  it('/health (GET)', () => {
+    return request(app.getHttpAdapter().getInstance())
+      .get('/health')
       .expect(200)
-      .expect('Hello World!');
+      .expect(({ body }) => {
+        expect(body).toMatchObject({
+          status: 'ok',
+          supabase: { configured: expect.any(Boolean) },
+          ai: { configured: expect.any(Boolean) },
+          app: { name: expect.any(String), version: expect.any(String) },
+        });
+        expect(JSON.stringify(body)).not.toContain(
+          process.env.SUPABASE_SERVICE_ROLE_KEY ?? 'unused-test-secret',
+        );
+        expect(JSON.stringify(body)).not.toContain(
+          process.env.GROQ_API_KEY ?? 'unused-test-secret',
+        );
+      });
   });
 });

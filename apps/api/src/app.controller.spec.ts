@@ -26,22 +26,24 @@ describe('AppController', () => {
     return module.get<AppController>(AppController);
   }
 
-  it('returns healthy status when Supabase responds', async () => {
+  it('returns safe healthy status without probing Supabase', async () => {
     const controller = await createController();
 
-    await expect(controller.getHealth()).resolves.toMatchObject({
-      status: 'OK',
-      supabase: { connected: true },
+    expect(controller.getHealth()).toMatchObject({
+      status: 'ok',
+      supabase: { configured: expect.any(Boolean) },
       app: { name: expect.any(String), version: expect.any(String) },
     });
   });
 
-  it('returns degraded status when Supabase check fails', async () => {
+  it('returns degraded deep health status when Supabase check fails', async () => {
     const controller = await createController(new Error('db unavailable'));
 
-    await expect(controller.getHealth()).resolves.toMatchObject({
+    await expect(controller.getDeepHealth()).resolves.toMatchObject({
       status: 'degraded',
-      supabase: { connected: false },
+      checks: {
+        supabase: { status: 'fail' },
+      },
     });
   });
 });
