@@ -6,6 +6,13 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
+import { UsageTodayDto } from '../docs/swagger.dto';
 import { OptionalAuthGuard } from '../auth/optional-auth.guard';
 import { SupabaseService } from '../supabase/supabase.service';
 
@@ -19,12 +26,16 @@ const CHAT_LIMITS = {
   premium: 50,
 } as const;
 
+@ApiTags('usage')
+@ApiBearerAuth()
 @Controller('usage')
 @UseGuards(OptionalAuthGuard)
 export class UsageController {
   constructor(private readonly supabase: SupabaseService) {}
 
   @Get('today')
+  @ApiOperation({ summary: 'Get today usage counts and limits' })
+  @ApiOkResponse({ type: UsageTodayDto })
   async getTodayUsage(@Req() req: any) {
     if (!req.user?.id)
       throw new HttpException(

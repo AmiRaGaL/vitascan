@@ -71,6 +71,12 @@ Run the API:
 pnpm dev:api
 ```
 
+In non-production environments, interactive API documentation is available at:
+
+```bash
+http://localhost:3000/docs
+```
+
 Run the web app:
 
 ```bash

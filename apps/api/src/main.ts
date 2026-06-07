@@ -1,5 +1,7 @@
 import * as dotenv from 'dotenv';
+import type { INestApplication } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import type { NextFunction, Request, Response } from 'express';
 import { ApiExceptionFilter } from './security/api-exception.filter';
@@ -30,6 +32,7 @@ async function bootstrap() {
     },
     credentials: true,
   });
+  setupApiDocs(app);
 
   const port = process.env.PORT ?? 3000;
   await app.listen(port, '0.0.0.0');
@@ -42,6 +45,25 @@ async function bootstrap() {
       corsOriginsConfigured: allowedOrigins.length,
     }),
   );
+}
+
+function setupApiDocs(app: INestApplication) {
+  if (process.env.NODE_ENV === 'production') return;
+
+  const config = new DocumentBuilder()
+    .setTitle('VitaScan API')
+    .setDescription(
+      'Educational health guidance API for symptom triage, saved sessions, profiles, recipes, usage, and chat.',
+    )
+    .setVersion(process.env.npm_package_version ?? '0.0.1')
+    .addBearerAuth()
+    .build();
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('docs', app, document, {
+    swaggerOptions: {
+      persistAuthorization: false,
+    },
+  });
 }
 
 function validateProductionEnv() {

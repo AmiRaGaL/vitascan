@@ -52,6 +52,13 @@ https://YOUR_RENDER_API_URL/health
 
 The response should include status, timestamp, Supabase connection state, and app metadata only. It should not expose secrets.
 
+Swagger/OpenAPI documentation is exposed at `/docs` only outside production
+(`NODE_ENV !== production`). For local API development, open:
+
+```sh
+http://localhost:3000/docs
+```
+
 ## 3. Vercel Web
 
 Use `apps/web` as the Vercel project root.

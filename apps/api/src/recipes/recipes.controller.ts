@@ -7,6 +7,14 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiTags,
+} from '@nestjs/swagger';
+import { RecipeDto } from '../docs/swagger.dto';
 import { OptionalAuthGuard } from '../auth/optional-auth.guard';
 import { SupabaseService } from '../supabase/supabase.service';
 
@@ -36,12 +44,17 @@ interface SymptomSessionForRecipes {
   health_profile_snapshot: SessionProfileSnapshot | null;
 }
 
+@ApiTags('recipes')
+@ApiBearerAuth()
 @Controller('symptom-sessions')
 @UseGuards(OptionalAuthGuard)
 export class RecipesController {
   constructor(private readonly supabase: SupabaseService) {}
 
   @Get(':id/recipes')
+  @ApiOperation({ summary: 'Get recipe recommendations for a saved session' })
+  @ApiParam({ name: 'id', example: 'session-id' })
+  @ApiOkResponse({ type: [RecipeDto] })
   async getSessionRecipes(@Param('id') id: string, @Req() req: any) {
     if (!req.user?.id)
       throw new HttpException(

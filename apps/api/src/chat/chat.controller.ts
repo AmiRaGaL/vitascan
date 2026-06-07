@@ -9,6 +9,21 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiTags,
+} from '@nestjs/swagger';
+import {
+  ChatMessageDto,
+  ChatMessageRequestDto,
+  ChatMessageResponseDto,
+  ChatThreadDto,
+  ChatThreadRequestDto,
+} from '../docs/swagger.dto';
 import { OptionalAuthGuard } from '../auth/optional-auth.guard';
 import {
   KnowledgeBaseChunk,
@@ -59,6 +74,8 @@ const CHAT_LIMITS = {
   premium: 50,
 } as const;
 
+@ApiTags('chat')
+@ApiBearerAuth()
 @Controller('chat')
 @UseGuards(OptionalAuthGuard)
 export class ChatController {
@@ -70,6 +87,9 @@ export class ChatController {
   ) {}
 
   @Post('threads')
+  @ApiOperation({ summary: 'Create or reuse a chat thread for a saved session' })
+  @ApiBody({ type: ChatThreadRequestDto })
+  @ApiOkResponse({ type: ChatThreadDto })
   async createThread(@Body() body: CreateThreadBody, @Req() req: any) {
     const userId = this.requireUser(req);
     const symptomSessionId = this.requireString(
@@ -103,6 +123,9 @@ export class ChatController {
   }
 
   @Get('threads/:id/messages')
+  @ApiOperation({ summary: 'List messages for a chat thread' })
+  @ApiParam({ name: 'id', example: 'thread-id' })
+  @ApiOkResponse({ type: [ChatMessageDto] })
   async getMessages(@Param('id') id: string, @Req() req: any) {
     const userId = this.requireUser(req);
     await this.getOwnedThread(id, userId);
@@ -118,6 +141,10 @@ export class ChatController {
   }
 
   @Post('threads/:id/messages')
+  @ApiOperation({ summary: 'Create a user message and AI follow-up reply' })
+  @ApiParam({ name: 'id', example: 'thread-id' })
+  @ApiBody({ type: ChatMessageRequestDto })
+  @ApiOkResponse({ type: ChatMessageResponseDto })
   async createMessage(
     @Param('id') id: string,
     @Body() body: CreateMessageBody,

@@ -11,6 +11,18 @@ import {
   UseGuards,
   Req,
 } from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiTags,
+} from '@nestjs/swagger';
+import {
+  AnalyzeSymptomsRequestDto,
+  AnalyzeSymptomsResponseDto,
+} from '../docs/swagger.dto';
 import { SupabaseService } from '../supabase/supabase.service';
 import { GroqService } from './groq.service';
 import { OptionalAuthGuard } from '../auth/optional-auth.guard';
@@ -35,6 +47,8 @@ const SYMPTOM_LIMITS = {
 
 const guestUsageByIp = new Map<string, { date: string; count: number }>();
 
+@ApiTags('symptom')
+@ApiBearerAuth()
 @Controller('symptom-sessions')
 export class SymptomController {
   constructor(
@@ -46,6 +60,20 @@ export class SymptomController {
   ) {}
 
   @Get('body-areas')
+  @ApiOperation({ summary: 'List symptom-check body areas' })
+  @ApiOkResponse({
+    schema: {
+      example: [
+        {
+          id: 'body-area-chest',
+          name: 'Chest',
+          icon: 'chest',
+          description: 'Chest, breathing, or heart-related symptoms',
+          sort_order: 1,
+        },
+      ],
+    },
+  })
   async getBodyAreas(): Promise<BodyArea[]> {
     const { data, error } = await this.supabase.supabase
       .from('body_areas')
@@ -57,6 +85,21 @@ export class SymptomController {
   }
 
   @Get('symptom-categories/:bodyAreaId')
+  @ApiOperation({ summary: 'List symptom categories for a body area' })
+  @ApiParam({ name: 'bodyAreaId', example: 'body-area-chest' })
+  @ApiOkResponse({
+    schema: {
+      example: [
+        {
+          id: 'symptom-chest-pain',
+          body_area_id: 'body-area-chest',
+          name: 'Chest pain',
+          description: 'Pain, pressure, tightness, or discomfort in the chest',
+          sort_order: 1,
+        },
+      ],
+    },
+  })
   async getSymptomCategories(
     @Param('bodyAreaId') bodyAreaId: string,
   ): Promise<SymptomCategory[]> {
@@ -71,6 +114,23 @@ export class SymptomController {
   }
 
   @Get('symptom-questions/:categoryId')
+  @ApiOperation({ summary: 'List guided questions for a symptom category' })
+  @ApiParam({ name: 'categoryId', example: 'symptom-chest-pain' })
+  @ApiOkResponse({
+    schema: {
+      example: [
+        {
+          id: 'severity',
+          symptom_category_id: 'symptom-chest-pain',
+          question_text: 'How severe is it?',
+          question_type: 'single_choice',
+          options: ['Mild', 'Moderate', 'Severe'],
+          is_required: true,
+          sort_order: 1,
+        },
+      ],
+    },
+  })
   async getQuestions(
     @Param('categoryId') categoryId: string,
   ): Promise<SymptomQuestion[]> {
@@ -87,6 +147,27 @@ export class SymptomController {
   // Get user history
   @Get()
   @UseGuards(OptionalAuthGuard)
+  @ApiOperation({ summary: 'List saved symptom sessions for the user' })
+  @ApiOkResponse({
+    schema: {
+      example: {
+        data: [
+          {
+            id: 'session-id',
+            initial_input: 'Chest: Chest tightness',
+            triage_level: 'pcp',
+            specialty_suggestion: null,
+            red_flags_detected: false,
+            created_at: '2026-01-01T00:00:00.000Z',
+          },
+        ],
+        page: 1,
+        limit: 10,
+        total: 1,
+        totalPages: 1,
+      },
+    },
+  })
   async getUserSessions(
     @Req() req: any,
     @Query('page') pageQuery?: string,
@@ -129,6 +210,20 @@ export class SymptomController {
   // Get single session
   @Get(':id')
   @UseGuards(OptionalAuthGuard)
+  @ApiOperation({ summary: 'Get one saved symptom session' })
+  @ApiParam({ name: 'id', example: 'session-id' })
+  @ApiOkResponse({
+    schema: {
+      example: {
+        id: 'session-id',
+        initial_input: 'Chest: Chest tightness',
+        triage_level: 'pcp',
+        summary: 'Monitor symptoms and follow up if they persist.',
+        red_flags_detected: false,
+        created_at: '2026-01-01T00:00:00.000Z',
+      },
+    },
+  })
   async getSessionById(@Param('id') id: string, @Req() req: any) {
     if (!req.user?.id)
       throw new HttpException(
@@ -153,6 +248,9 @@ export class SymptomController {
 
   @Delete(':id')
   @UseGuards(OptionalAuthGuard)
+  @ApiOperation({ summary: 'Delete one saved symptom session' })
+  @ApiParam({ name: 'id', example: 'session-id' })
+  @ApiOkResponse({ schema: { example: { success: true } } })
   async deleteSession(@Param('id') id: string, @Req() req: any) {
     if (!req.user?.id)
       throw new HttpException(
@@ -190,6 +288,11 @@ export class SymptomController {
 
   @Post('analyze')
   @UseGuards(OptionalAuthGuard)
+  @ApiOperation({
+    summary: 'Analyze structured symptom answers and optionally save a session',
+  })
+  @ApiBody({ type: AnalyzeSymptomsRequestDto })
+  @ApiOkResponse({ type: AnalyzeSymptomsResponseDto })
   async analyzeSymptoms(
     @Body() body: StructuredSymptomRequest,
     @Req() req: any,
