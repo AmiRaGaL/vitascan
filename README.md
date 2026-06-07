@@ -157,7 +157,7 @@ NEXT_PUBLIC_API_URL=
 
 ## Demo Visuals
 
-Screenshots for README, portfolio, GitHub, and demo sharing live in [docs/screenshots](docs/screenshots). Screenshots are listed in [docs/screenshots/README.md](docs/screenshots/README.md) and can be captured from the production demo.
+Production screenshots for README, portfolio, GitHub, and demo sharing live in [docs/screenshots](docs/screenshots). The current screenshot package includes the landing page, dashboard, profile, guided symptom check, saved session detail, recipes, follow-up chat, and red-flag safety state.
 
 ## Roadmap
 
