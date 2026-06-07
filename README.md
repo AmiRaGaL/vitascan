@@ -1,5 +1,7 @@
 # VitaScan
 
+[![CI](https://github.com/AmiRaGaL/vitascan/actions/workflows/ci.yml/badge.svg)](https://github.com/AmiRaGaL/vitascan/actions/workflows/ci.yml)
+
 VitaScan is an AI-powered symptom triage and health guidance MVP. It helps users organize symptoms, see educational next-step guidance, save sessions, and ask follow-up questions. VitaScan is not a medical device and does not provide a diagnosis.
 
 ## Project Overview

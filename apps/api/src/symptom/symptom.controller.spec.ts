@@ -1,7 +1,13 @@
 import { SymptomController } from './symptom.controller';
 
 describe('SymptomController payload validation', () => {
-  const controller = new SymptomController({} as any, {} as any, {} as any);
+  const controller = new SymptomController(
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+  );
   const validateAnalyzePayload = (body: unknown) =>
     (controller as any).validateAnalyzePayload(body);
 
