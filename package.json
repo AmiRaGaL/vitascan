@@ -15,6 +15,11 @@
     "dev:mobile": "pnpm --filter @vitascan/mobile start",
     "dev": "concurrently \"pnpm dev:web\" \"pnpm dev:api\"",
     "build:shared": "pnpm --filter @vitascan/shared build",
-    "build:api": "pnpm --filter @vitascan/api build"
+    "build:api": "pnpm --filter @vitascan/api build",
+    "build": "pnpm build:shared && pnpm build:api && pnpm --filter @vitascan/web build",
+    "test": "pnpm --filter @vitascan/api test",
+    "lint": "pnpm --filter @vitascan/web lint",
+    "typecheck": "pnpm --filter @vitascan/web exec tsc --noEmit",
+    "ci": "pnpm build && pnpm test && pnpm lint && pnpm typecheck"
   }
 }

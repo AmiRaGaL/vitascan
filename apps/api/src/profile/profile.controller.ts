@@ -8,6 +8,14 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
+import { HealthProfileDto, ProfileStatusDto } from '../docs/swagger.dto';
 import { OptionalAuthGuard } from '../auth/optional-auth.guard';
 import { RateLimitService } from '../security/rate-limit.service';
 import { SupabaseService } from '../supabase/supabase.service';
@@ -31,6 +39,8 @@ interface ProfileStatus {
   missingFields: string[];
 }
 
+@ApiTags('profile')
+@ApiBearerAuth()
 @Controller('profile')
 @UseGuards(OptionalAuthGuard)
 export class ProfileController {
@@ -40,6 +50,8 @@ export class ProfileController {
   ) {}
 
   @Get()
+  @ApiOperation({ summary: 'Get the authenticated user health profile' })
+  @ApiOkResponse({ type: HealthProfileDto })
   async getProfile(@Req() req: any) {
     if (!req.user?.id)
       throw new HttpException(
@@ -60,6 +72,8 @@ export class ProfileController {
   }
 
   @Get('status')
+  @ApiOperation({ summary: 'Get health profile completion status' })
+  @ApiOkResponse({ type: ProfileStatusDto })
   async getProfileStatus(@Req() req: any): Promise<ProfileStatus> {
     if (!req.user?.id)
       throw new HttpException(
@@ -80,6 +94,9 @@ export class ProfileController {
   }
 
   @Put()
+  @ApiOperation({ summary: 'Create or update the authenticated user profile' })
+  @ApiBody({ type: HealthProfileDto })
+  @ApiOkResponse({ type: HealthProfileDto })
   async updateProfile(@Body() body: HealthProfileBody, @Req() req: any) {
     if (!req.user?.id)
       throw new HttpException(

@@ -1,7 +1,7 @@
 import { ProfileController } from './profile.controller';
 
 describe('ProfileController validation', () => {
-  const controller = new ProfileController({} as any);
+  const controller = new ProfileController({} as any, {} as any);
   const validateProfile = (body: unknown) =>
     (controller as any).validateProfile(body);
 

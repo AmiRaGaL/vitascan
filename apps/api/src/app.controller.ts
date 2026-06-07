@@ -1,11 +1,16 @@
 import { Controller, Get } from '@nestjs/common';
+import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { DeepHealthResponseDto, HealthResponseDto } from './docs/swagger.dto';
 import { SupabaseService } from './supabase/supabase.service';
 
+@ApiTags('health')
 @Controller()
 export class AppController {
   constructor(private readonly supabase: SupabaseService) {}
 
   @Get('health')
+  @ApiOperation({ summary: 'Return safe public API health metadata' })
+  @ApiOkResponse({ type: HealthResponseDto })
   getHealth() {
     return {
       status: 'ok',
@@ -26,6 +31,10 @@ export class AppController {
   }
 
   @Get('health/deep')
+  @ApiOperation({
+    summary: 'Run deployment diagnostics for Supabase and AI configuration',
+  })
+  @ApiOkResponse({ type: DeepHealthResponseDto })
   async getDeepHealth() {
     const supabaseStatus = await this.checkSupabase();
     const aiConfigured = Boolean(process.env.GROQ_API_KEY);

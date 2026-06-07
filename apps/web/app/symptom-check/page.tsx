@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ComponentProps } from "react";
 import { useRouter } from "next/navigation";
 import {
   Activity,
@@ -12,7 +12,6 @@ import {
   HeartPulse,
   Moon,
   Wind,
-  type LucideIcon,
 } from "lucide-react";
 import { ErrorState } from "@/components/ErrorState";
 import { MedicalDisclaimer } from "@/components/MedicalDisclaimer";
@@ -964,8 +963,6 @@ function BodyAreaCard({
   selected: boolean;
   onSelect: () => void;
 }) {
-  const Icon = getBodyAreaIcon(area.name);
-
   return (
     <button
       type="button"
@@ -986,7 +983,7 @@ function BodyAreaCard({
         }`}
         aria-hidden="true"
       >
-        <Icon className="h-7 w-7" strokeWidth={2} />
+        <BodyAreaIcon name={area.name} className="h-7 w-7" strokeWidth={2} />
       </span>
       <span className="min-w-0">
         <span className="flex items-center gap-2 text-lg font-semibold text-gray-950">
@@ -1005,42 +1002,45 @@ function BodyAreaCard({
   );
 }
 
-function getBodyAreaIcon(name: string): LucideIcon {
+function BodyAreaIcon({
+  name,
+  ...iconProps
+}: { name: string } & ComponentProps<typeof Activity>) {
   const normalized = name.toLowerCase();
 
   if (normalized.includes("chest") || normalized.includes("breathing")) {
-    return Wind;
+    return <Wind {...iconProps} />;
   }
   if (normalized.includes("head") || normalized.includes("neck")) {
-    return Brain;
+    return <Brain {...iconProps} />;
   }
   if (normalized.includes("abdomen") || normalized.includes("digestion")) {
-    return Apple;
+    return <Apple {...iconProps} />;
   }
   if (normalized.includes("back") || normalized.includes("spine")) {
-    return Bone;
+    return <Bone {...iconProps} />;
   }
   if (
     normalized.includes("arms") ||
     normalized.includes("legs") ||
     normalized.includes("joints")
   ) {
-    return Dumbbell;
+    return <Dumbbell {...iconProps} />;
   }
   if (normalized.includes("skin") || normalized.includes("wounds")) {
-    return Bandage;
+    return <Bandage {...iconProps} />;
   }
   if (normalized.includes("urinary") || normalized.includes("pelvic")) {
-    return Droplets;
+    return <Droplets {...iconProps} />;
   }
   if (normalized.includes("mental") || normalized.includes("sleep")) {
-    return Moon;
+    return <Moon {...iconProps} />;
   }
   if (normalized.includes("general") || normalized.includes("whole body")) {
-    return HeartPulse;
+    return <HeartPulse {...iconProps} />;
   }
 
-  return Activity;
+  return <Activity {...iconProps} />;
 }
 
 function isMultiChoiceQuestion(question: SymptomQuestion) {

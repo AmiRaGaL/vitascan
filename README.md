@@ -1,6 +1,31 @@
 # VitaScan
 
+[![CI](https://github.com/AmiRaGaL/vitascan/actions/workflows/ci.yml/badge.svg)](https://github.com/AmiRaGaL/vitascan/actions/workflows/ci.yml)
+
 VitaScan is an AI-powered symptom triage and health guidance MVP. It helps users organize symptoms, see educational next-step guidance, save sessions, and ask follow-up questions. VitaScan is not a medical device and does not provide a diagnosis.
+
+## Demo
+
+- Live demo: [https://vitascan-web-rho.vercel.app/](https://vitascan-web-rho.vercel.app/)
+- Demo video: _In Progress._
+
+![VitaScan landing page](docs/screenshots/landing.png)
+
+![Symptom check flow](docs/screenshots/symptom-check.png)
+
+![Saved session detail](docs/screenshots/session-detail.png)
+
+![Recipe recommendations](docs/screenshots/recipes.png)
+
+![Follow-up chat](docs/screenshots/chat.png)
+
+### What This Demonstrates Technically
+
+- Full-stack TypeScript monorepo with Next.js App Router, NestJS, and pnpm workspaces.
+- Supabase Auth, Postgres persistence, row-level security, saved sessions, profiles, usage counters, recipes, and chat.
+- AI-assisted symptom guidance with rule-based red-flag overrides and conservative safety positioning.
+- Lightweight RAG grounding with `pgvector`, knowledge-base chunks, saved reference summaries, and fallback behavior.
+- Production-minded API guardrails: CORS, security headers, structured logging, rate limiting, health checks, Swagger docs, CI, and focused tests.
 
 ## Project Overview
 
@@ -67,6 +92,12 @@ Run the API:
 
 ```bash
 pnpm dev:api
+```
+
+In non-production environments, interactive API documentation is available at:
+
+```bash
+http://localhost:3000/docs
 ```
 
 Run the web app:
