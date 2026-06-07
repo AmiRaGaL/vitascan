@@ -75,6 +75,10 @@ Set `NEXT_PUBLIC_API_URL` to the deployed Render API URL, without a trailing sla
 
 The app builds API calls from `NEXT_PUBLIC_API_URL`; do not hardcode localhost API URLs in deployed builds.
 
+CI uses safe dummy `NEXT_PUBLIC_*` values only to validate the Next.js build
+without real Supabase credentials. Production and local deployments must still
+provide real public Supabase project values.
+
 ## 4. Production Smoke Test
 
 1. Open the deployed web app.
