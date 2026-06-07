@@ -6,8 +6,8 @@ VitaScan is an AI-powered symptom triage and health guidance MVP. It helps users
 
 ## Demo
 
-- Live demo: _Add stable deployment URL here when available._
-- Demo video: _Add walkthrough video URL here when available._
+- Live demo: [https://vitascan-web-rho.vercel.app/](https://vitascan-web-rho.vercel.app/)
+- Demo video: _In Progress._
 
 ![VitaScan landing page](docs/screenshots/landing.png)
 
