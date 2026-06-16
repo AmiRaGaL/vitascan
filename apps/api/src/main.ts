@@ -74,14 +74,24 @@ function validateProductionEnv() {
     'SUPABASE_SERVICE_ROLE_KEY',
     'SUPABASE_JWT_SECRET',
     'GROQ_API_KEY',
-    'EMBEDDING_MODEL',
     'WEB_ORIGIN',
     'PORT',
     'NODE_ENV',
   ];
+  if (getEmbeddingProvider() === 'gemini') {
+    requiredEnvVars.push('GEMINI_API_KEY');
+  }
+
   const missingEnvVars = requiredEnvVars.filter(
     (name) => !process.env[name]?.trim(),
   );
+  if (
+    getEmbeddingProvider() === 'openai' &&
+    !process.env.EMBEDDING_API_KEY?.trim() &&
+    !process.env.OPENAI_API_KEY?.trim()
+  ) {
+    missingEnvVars.push('EMBEDDING_API_KEY or OPENAI_API_KEY');
+  }
 
   if (missingEnvVars.length > 0) {
     throw new Error(
@@ -95,6 +105,12 @@ function validateProductionEnv() {
       `WEB_ORIGIN must include ${REQUIRED_PRODUCTION_WEB_ORIGIN}`,
     );
   }
+}
+
+function getEmbeddingProvider() {
+  return (process.env.EMBEDDING_PROVIDER ?? 'gemini').toLowerCase() === 'openai'
+    ? 'openai'
+    : 'gemini';
 }
 
 function getAllowedOrigins() {
