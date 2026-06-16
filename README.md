@@ -129,11 +129,19 @@ SUPABASE_URL=
 SUPABASE_SERVICE_ROLE_KEY=
 SUPABASE_JWT_SECRET=
 GROQ_API_KEY=
-EMBEDDING_MODEL=
+EMBEDDING_PROVIDER=gemini
+GEMINI_API_KEY=
+EMBEDDING_MODEL=gemini-embedding-2
+EMBEDDING_DIMENSIONS=1536
 WEB_ORIGIN=
 PORT=
 NODE_ENV=
 ```
+
+Embeddings default to Gemini with `gemini-embedding-2` and 1,536 dimensions
+for Supabase `vector(1536)`. `GEMINI_API_KEY` is required when
+`EMBEDDING_PROVIDER=gemini`. OpenAI embedding keys are only needed if
+`EMBEDDING_PROVIDER=openai`.
 
 Web:
 
