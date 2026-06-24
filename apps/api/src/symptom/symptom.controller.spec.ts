@@ -88,6 +88,11 @@ describe('SymptomController analyzeSymptoms', () => {
 
   function insertSessionQuery(sessionId = 'session-id') {
     return {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      maybeSingle: jest
+        .fn()
+        .mockResolvedValue({ data: { id: sessionId }, error: null }),
       insert: jest.fn().mockReturnValue({
         select: jest.fn().mockReturnValue({
           single: jest
@@ -140,6 +145,16 @@ describe('SymptomController analyzeSymptoms', () => {
         safety_override_applied: false,
         trace_id: 'mock_trace_symptom-id',
       }),
+      getTraces: jest.fn().mockResolvedValue([
+        {
+          trace_id: 'mock_trace_session-id',
+          session_id: 'session-id',
+          user_id: 'user-id',
+          event_type: 'triage_run',
+          payload: {},
+          created_at: '2026-01-01T00:00:00.000Z',
+        },
+      ]),
     };
     const redFlags = {
       evaluate: jest.fn().mockReturnValue(
@@ -343,5 +358,30 @@ describe('SymptomController analyzeSymptoms', () => {
         process.env.USE_AI_SERVICE = previousFlag;
       }
     }
+  });
+
+  it('fetches traces only after confirming session ownership', async () => {
+    const { controller, aiService, sessionQuery } = createController();
+
+    await expect(
+      controller.getSessionTraces('session-id', {
+        user: { id: 'user-id' },
+        headers: {},
+      }),
+    ).resolves.toEqual([
+      {
+        trace_id: 'mock_trace_session-id',
+        session_id: 'session-id',
+        user_id: 'user-id',
+        event_type: 'triage_run',
+        payload: {},
+        created_at: '2026-01-01T00:00:00.000Z',
+      },
+    ]);
+
+    expect(sessionQuery.select).toHaveBeenCalledWith('id');
+    expect(sessionQuery.eq).toHaveBeenCalledWith('id', 'session-id');
+    expect(sessionQuery.eq).toHaveBeenCalledWith('user_id', 'user-id');
+    expect(aiService.getTraces).toHaveBeenCalledWith('session-id');
   });
 });

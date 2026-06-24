@@ -35,3 +35,7 @@ class TriageDecision(BaseModel):
     evidence_ids: list[str] = Field(default_factory=list)
     follow_up_questions: list[str] = Field(default_factory=list)
     safety_override_applied: bool = False
+    model_name: str | None = None
+    token_metadata: dict = Field(default_factory=dict)
+    validation_passed: bool = True
+    fallback_used: bool = False

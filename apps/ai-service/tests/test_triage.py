@@ -98,6 +98,32 @@ class TriageRouteTest(unittest.TestCase):
         self.assertEqual(response.json()["citations"], [])
         self.assertFalse(response.json()["safety_override_applied"])
 
+    def test_trace_logger_called_on_successful_triage(self):
+        with patch("app.routes.triage.log_trace") as log_trace:
+            response = self.authorized_post("I have a mild headache for one day.")
+
+        self.assertEqual(response.status_code, 200)
+        log_trace.assert_called_once()
+        metadata = log_trace.call_args.args[0]
+        self.assertEqual(metadata.trace_id, "mock_trace_session-123")
+        self.assertEqual(metadata.session_id, "session-123")
+        self.assertEqual(metadata.request_text, "I have a mild headache for one day.")
+        self.assertIn("chief_complaint", metadata.normalized_symptoms)
+        self.assertNotIn("raw_text", metadata.normalized_symptoms)
+        self.assertIn("matched", metadata.red_flags)
+        self.assertIn("triage_level", metadata.triage_decision)
+        self.assertIsInstance(metadata.latency_ms, int)
+
+    def test_trace_failure_does_not_break_triage(self):
+        with patch(
+            "app.routes.triage.log_trace",
+            side_effect=RuntimeError("trace unavailable"),
+        ):
+            response = self.authorized_post("I have a mild headache for one day.")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["trace_id"], "mock_trace_session-123")
+
     def assert_emergency_override(self, response):
         self.assertEqual(response.status_code, 200)
         body = response.json()

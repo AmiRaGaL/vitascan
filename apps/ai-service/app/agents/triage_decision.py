@@ -37,6 +37,8 @@ async def decide_triage(
             evidence_ids=[],
             follow_up_questions=[],
             safety_override_applied=True,
+            validation_passed=True,
+            fallback_used=False,
         )
 
     client = groq_client if groq_client is not None else get_groq_client()
@@ -47,6 +49,14 @@ async def decide_triage(
     try:
         result = await client.chat(messages)
         decision = parse_decision(result.content)
+        decision = decision.model_copy(
+            update={
+                "model_name": client.model,
+                "token_metadata": result.token_metadata,
+                "validation_passed": True,
+                "fallback_used": False,
+            }
+        )
     except (ValidationError, json.JSONDecodeError, ValueError):
         decision = await repair_or_fallback(client, messages, normalized)
     except Exception:
@@ -100,7 +110,18 @@ async def repair_or_fallback(
     ]
     try:
         result = await client.chat(repair_messages)
-        return prevent_unsafe_home_care(parse_decision(result.content), normalized)
+        decision = parse_decision(result.content)
+        return prevent_unsafe_home_care(
+            decision.model_copy(
+                update={
+                    "model_name": client.model,
+                    "token_metadata": result.token_metadata,
+                    "validation_passed": True,
+                    "fallback_used": False,
+                }
+            ),
+            normalized,
+        )
     except Exception:
         return fallback_decision(normalized, reason="Groq JSON repair failed.")
 
@@ -114,6 +135,8 @@ def fallback_decision(normalized: NormalizedSymptoms, reason: str) -> TriageDeci
         evidence_ids=[],
         follow_up_questions=[],
         safety_override_applied=False,
+        validation_passed=False,
+        fallback_used=True,
     )
 
 

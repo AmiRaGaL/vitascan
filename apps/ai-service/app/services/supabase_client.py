@@ -23,6 +23,34 @@ class SupabaseClient:
         data = response.json()
         return data if isinstance(data, list) else []
 
+    def insert(self, table_name: str, row: dict) -> None:
+        response = httpx.post(
+            f"{self.url}/rest/v1/{table_name}",
+            headers={
+                "apikey": self.service_role_key,
+                "authorization": f"Bearer {self.service_role_key}",
+                "content-type": "application/json",
+                "prefer": "return=minimal",
+            },
+            json=row,
+            timeout=10.0,
+        )
+        response.raise_for_status()
+
+    def select(self, table_name: str, params: dict) -> list[dict]:
+        response = httpx.get(
+            f"{self.url}/rest/v1/{table_name}",
+            headers={
+                "apikey": self.service_role_key,
+                "authorization": f"Bearer {self.service_role_key}",
+            },
+            params=params,
+            timeout=10.0,
+        )
+        response.raise_for_status()
+        data = response.json()
+        return data if isinstance(data, list) else []
+
 
 def get_supabase_client() -> SupabaseClient | None:
     settings = get_settings()
