@@ -1,5 +1,6 @@
 import os
 import unittest
+from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
@@ -88,6 +89,17 @@ class TriageRouteTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["triage_level"], "primary_care")
         self.assertEqual(response.json()["confidence"], 0.5)
+        self.assertFalse(response.json()["safety_override_applied"])
+
+    def test_retrieval_failure_keeps_triage_response_safe(self):
+        with patch(
+            "app.routes.triage.retrieve_medical_chunks",
+            side_effect=RuntimeError("retrieval unavailable"),
+        ):
+            response = self.authorized_post("I have a mild headache for one day.")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["citations"], [])
         self.assertFalse(response.json()["safety_override_applied"])
 
     def assert_emergency_override(self, response):
