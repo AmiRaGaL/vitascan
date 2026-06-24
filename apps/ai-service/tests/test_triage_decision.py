@@ -16,6 +16,7 @@ class FakeGroqClient:
     def __init__(self, responses):
         self.responses = list(responses)
         self.calls = []
+        self.model = "test-groq-model"
 
     async def chat(self, messages, temperature=0.1):
         self.calls.append(messages)

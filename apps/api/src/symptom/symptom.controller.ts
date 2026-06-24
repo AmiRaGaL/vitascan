@@ -210,6 +210,34 @@ export class SymptomController {
     };
   }
 
+  @Get(':id/traces')
+  @UseGuards(OptionalAuthGuard)
+  @ApiOperation({
+    summary: 'Get AI trace logs for a saved symptom session owned by the user',
+  })
+  @ApiParam({ name: 'id', example: 'session-id' })
+  async getSessionTraces(@Param('id') id: string, @Req() req: any) {
+    if (!req.user?.id)
+      throw new HttpException(
+        'Authentication required',
+        HttpStatus.UNAUTHORIZED,
+      );
+
+    const { data: session, error } = await this.supabase.supabase
+      .from('symptom_sessions')
+      .select('id')
+      .eq('id', id)
+      .eq('user_id', req.user.id)
+      .maybeSingle();
+
+    if (error)
+      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+    if (!session)
+      throw new HttpException('Session not found', HttpStatus.NOT_FOUND);
+
+    return this.aiService.getTraces(id);
+  }
+
   // Get single session
   @Get(':id')
   @UseGuards(OptionalAuthGuard)
