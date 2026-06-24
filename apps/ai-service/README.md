@@ -1,6 +1,6 @@
 # VitaScan AI Service
 
-FastAPI service for VitaScan AI orchestration. Phase 1 provides deployable health and mock triage endpoints only.
+FastAPI service for VitaScan AI orchestration.
 
 ## Local setup
 
@@ -16,6 +16,27 @@ AI_SERVICE_TOKEN=replace_me uvicorn app.main:app --host 0.0.0.0 --port 10000
 - `GET /health` is public and returns service status.
 - `POST /triage/run` requires the `x-service-token` header and returns a mock triage response.
 
-## Render
+## Render deployment
 
-Use the Dockerfile and set `AI_SERVICE_TOKEN` in Render environment variables. The container listens on port `10000`.
+Create a Render web service with:
+
+- Service root: `apps/ai-service`
+- Environment: Docker
+- Dockerfile: `apps/ai-service/Dockerfile`
+
+The container listens on port `10000`.
+
+Required environment variables:
+
+```sh
+AI_SERVICE_TOKEN=
+SUPABASE_URL=
+SUPABASE_SERVICE_ROLE_KEY=
+GROQ_API_KEY=
+GROQ_TRIAGE_MODEL=
+GROQ_FAST_MODEL=
+```
+
+Keep local ingestion dependencies such as `sentence-transformers` out of
+`requirements.txt`; install them only in a local virtual environment when
+running scripts under `scripts/`.

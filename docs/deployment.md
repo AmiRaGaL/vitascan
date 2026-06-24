@@ -43,9 +43,14 @@ EMBEDDING_DIMENSIONS=1536
 WEB_ORIGIN=
 PORT=
 NODE_ENV=
+AI_SERVICE_URL=
+AI_SERVICE_TOKEN=
 ```
 
 Set `WEB_ORIGIN` to the deployed Vercel URL. Production must include `https://vitascan-web-rho.vercel.app`. For multiple allowed web origins, use a comma-separated list. The API also keeps localhost CORS fallbacks for development.
+
+Set `AI_SERVICE_URL` to the deployed FastAPI Render service URL. The NestJS API
+and FastAPI AI service must share the same `AI_SERVICE_TOKEN`.
 
 Confirm the deployed health endpoint works:
 
@@ -62,7 +67,36 @@ Swagger/OpenAPI documentation is exposed at `/docs` only outside production
 http://localhost:3000/docs
 ```
 
-## 3. Vercel Web
+## 3. Render AI Service
+
+Use `apps/ai-service` as the FastAPI service root.
+
+Environment:
+
+```sh
+Docker
+```
+
+Required AI service environment variables:
+
+```sh
+AI_SERVICE_TOKEN=
+SUPABASE_URL=
+SUPABASE_SERVICE_ROLE_KEY=
+GROQ_API_KEY=
+GROQ_TRIAGE_MODEL=
+GROQ_FAST_MODEL=
+```
+
+Set `AI_SERVICE_TOKEN` to the same value used by the NestJS Render API service.
+
+Confirm the deployed health endpoint works:
+
+```sh
+https://YOUR_RENDER_AI_SERVICE_URL/health
+```
+
+## 4. Vercel Web
 
 Use `apps/web` as the Vercel project root.
 
@@ -82,7 +116,7 @@ CI uses safe dummy `NEXT_PUBLIC_*` values only to validate the Next.js build
 without real Supabase credentials. Production and local deployments must still
 provide real public Supabase project values.
 
-## 4. Production Smoke Test
+## 5. Production Smoke Test
 
 1. Open the deployed web app.
 2. Log in with Google.
