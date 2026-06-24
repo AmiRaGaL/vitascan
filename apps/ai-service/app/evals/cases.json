@@ -1,0 +1,242 @@
+[
+  {
+    "id": "home_001",
+    "category": "home_care",
+    "message": "Mild runny nose and sneezing since this morning, no fever.",
+    "expected_triage_level": "home_care",
+    "expected_red_flag": false,
+    "expected_follow_up_needed": false
+  },
+  {
+    "id": "home_002",
+    "category": "home_care",
+    "message": "Small paper cut on my finger, bleeding stopped quickly.",
+    "expected_triage_level": "home_care",
+    "expected_red_flag": false,
+    "expected_follow_up_needed": false
+  },
+  {
+    "id": "home_003",
+    "category": "home_care",
+    "message": "Mild muscle soreness after exercise yesterday.",
+    "expected_triage_level": "home_care",
+    "expected_red_flag": false,
+    "expected_follow_up_needed": false
+  },
+  {
+    "id": "home_004",
+    "category": "home_care",
+    "message": "Occasional mild heartburn after a spicy meal, already improving.",
+    "expected_triage_level": "home_care",
+    "expected_red_flag": false,
+    "expected_follow_up_needed": false
+  },
+  {
+    "id": "home_005",
+    "category": "home_care",
+    "message": "Mild itchy mosquito bites on my ankle.",
+    "expected_triage_level": "home_care",
+    "expected_red_flag": false,
+    "expected_follow_up_needed": false
+  },
+  {
+    "id": "primary_001",
+    "category": "primary_care",
+    "message": "Mild headache for three days that keeps coming back.",
+    "expected_triage_level": "primary_care",
+    "expected_red_flag": false,
+    "expected_follow_up_needed": false
+  },
+  {
+    "id": "primary_002",
+    "category": "primary_care",
+    "message": "Dry cough for two weeks, no breathing problems or chest discomfort.",
+    "expected_triage_level": "primary_care",
+    "expected_red_flag": false,
+    "expected_follow_up_needed": false
+  },
+  {
+    "id": "primary_003",
+    "category": "primary_care",
+    "message": "Recurring mild stomach discomfort after meals for a month.",
+    "expected_triage_level": "primary_care",
+    "expected_red_flag": false,
+    "expected_follow_up_needed": false
+  },
+  {
+    "id": "primary_004",
+    "category": "primary_care",
+    "message": "Knee pain when climbing stairs for several weeks, no injury.",
+    "expected_triage_level": "primary_care",
+    "expected_red_flag": false,
+    "expected_follow_up_needed": false
+  },
+  {
+    "id": "primary_005",
+    "category": "primary_care",
+    "message": "Fatigue most days for a few weeks, still able to do normal activities.",
+    "expected_triage_level": "primary_care",
+    "expected_red_flag": false,
+    "expected_follow_up_needed": false
+  },
+  {
+    "id": "urgent_001",
+    "category": "urgent_care",
+    "message": "Fever and worsening sore throat with swollen glands for two days.",
+    "expected_triage_level": "urgent_care",
+    "expected_red_flag": false,
+    "expected_follow_up_needed": false
+  },
+  {
+    "id": "urgent_002",
+    "category": "urgent_care",
+    "message": "Painful urination with fever and back discomfort.",
+    "expected_triage_level": "urgent_care",
+    "expected_red_flag": false,
+    "expected_follow_up_needed": false
+  },
+  {
+    "id": "urgent_003",
+    "category": "urgent_care",
+    "message": "Deep cut on my hand may need stitches but bleeding is controlled.",
+    "expected_triage_level": "urgent_care",
+    "expected_red_flag": false,
+    "expected_follow_up_needed": false
+  },
+  {
+    "id": "urgent_004",
+    "category": "urgent_care",
+    "message": "Moderate ankle swelling and pain after twisting it today.",
+    "expected_triage_level": "urgent_care",
+    "expected_red_flag": false,
+    "expected_follow_up_needed": false
+  },
+  {
+    "id": "urgent_005",
+    "category": "urgent_care",
+    "message": "Persistent vomiting today and I am struggling to keep fluids down.",
+    "expected_triage_level": "urgent_care",
+    "expected_red_flag": false,
+    "expected_follow_up_needed": false
+  },
+  {
+    "id": "emergency_001",
+    "category": "emergency",
+    "message": "Chest pain with sweating and nausea.",
+    "expected_triage_level": "emergency",
+    "expected_red_flag": true,
+    "expected_follow_up_needed": false
+  },
+  {
+    "id": "emergency_002",
+    "category": "emergency",
+    "message": "Chest tightness and shortness of breath started suddenly.",
+    "expected_triage_level": "emergency",
+    "expected_red_flag": true,
+    "expected_follow_up_needed": false
+  },
+  {
+    "id": "emergency_003",
+    "category": "emergency",
+    "message": "Chest pain with left arm pain.",
+    "expected_triage_level": "emergency",
+    "expected_red_flag": true,
+    "expected_follow_up_needed": false
+  },
+  {
+    "id": "emergency_004",
+    "category": "emergency",
+    "message": "Face drooping and slurred speech noticed a few minutes ago.",
+    "expected_triage_level": "emergency",
+    "expected_red_flag": true,
+    "expected_follow_up_needed": false
+  },
+  {
+    "id": "emergency_005",
+    "category": "emergency",
+    "message": "One side weakness and sudden confusion.",
+    "expected_triage_level": "emergency",
+    "expected_red_flag": true,
+    "expected_follow_up_needed": false
+  },
+  {
+    "id": "emergency_006",
+    "category": "emergency",
+    "message": "Slurred speech with one side weakness.",
+    "expected_triage_level": "emergency",
+    "expected_red_flag": true,
+    "expected_follow_up_needed": false
+  },
+  {
+    "id": "emergency_007",
+    "category": "emergency",
+    "message": "Hives and trouble breathing after eating peanuts.",
+    "expected_triage_level": "emergency",
+    "expected_red_flag": true,
+    "expected_follow_up_needed": false
+  },
+  {
+    "id": "emergency_008",
+    "category": "emergency",
+    "message": "Swelling lips and hives after a new medication.",
+    "expected_triage_level": "emergency",
+    "expected_red_flag": true,
+    "expected_follow_up_needed": false
+  },
+  {
+    "id": "emergency_009",
+    "category": "emergency",
+    "message": "Swelling tongue and trouble breathing.",
+    "expected_triage_level": "emergency",
+    "expected_red_flag": true,
+    "expected_follow_up_needed": false
+  },
+  {
+    "id": "emergency_010",
+    "category": "emergency",
+    "message": "Shortness of breath with sweating and chest tightness.",
+    "expected_triage_level": "emergency",
+    "expected_red_flag": true,
+    "expected_follow_up_needed": false
+  },
+  {
+    "id": "ambiguous_001",
+    "category": "ambiguous",
+    "message": "I feel weird and not myself.",
+    "expected_triage_level": "primary_care",
+    "expected_red_flag": false,
+    "expected_follow_up_needed": true
+  },
+  {
+    "id": "ambiguous_002",
+    "category": "ambiguous",
+    "message": "My pain comes and goes but I cannot describe where.",
+    "expected_triage_level": "primary_care",
+    "expected_red_flag": false,
+    "expected_follow_up_needed": true
+  },
+  {
+    "id": "ambiguous_003",
+    "category": "ambiguous",
+    "message": "Something feels off after dinner.",
+    "expected_triage_level": "primary_care",
+    "expected_red_flag": false,
+    "expected_follow_up_needed": true
+  },
+  {
+    "id": "ambiguous_004",
+    "category": "ambiguous",
+    "message": "I have symptoms but I am not sure what they are.",
+    "expected_triage_level": "primary_care",
+    "expected_red_flag": false,
+    "expected_follow_up_needed": true
+  },
+  {
+    "id": "ambiguous_005",
+    "category": "ambiguous",
+    "message": "I am worried about a vague discomfort that started recently.",
+    "expected_triage_level": "primary_care",
+    "expected_red_flag": false,
+    "expected_follow_up_needed": true
+  }
+]
