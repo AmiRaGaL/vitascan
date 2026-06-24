@@ -49,3 +49,11 @@ packages/*/.env
 # Temporary
 *.tmp
 .cache
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+myenv/
+.pytest_cache/
