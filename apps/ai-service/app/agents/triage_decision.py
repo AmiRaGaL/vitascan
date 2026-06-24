@@ -7,7 +7,7 @@ from app.agents.red_flag import RedFlagResult
 from app.prompts.triage_decision import JSON_REPAIR_PROMPT, SYSTEM_PROMPT
 from app.schemas.symptom import NormalizedSymptoms
 from app.schemas.triage import HealthProfile, TriageDecision
-from app.services.groq_client import GroqClient, get_groq_client
+from app.services.groq_client import GroqClient, GroqRateLimitError, get_groq_client
 
 
 SERIOUS_TERMS = [
@@ -57,6 +57,8 @@ async def decide_triage(
                 "fallback_used": False,
             }
         )
+    except GroqRateLimitError:
+        decision = fallback_decision(normalized, reason="groq_rate_limited")
     except (ValidationError, json.JSONDecodeError, ValueError):
         decision = await repair_or_fallback(client, messages, normalized)
     except Exception:
