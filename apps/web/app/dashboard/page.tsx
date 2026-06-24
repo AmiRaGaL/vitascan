@@ -40,8 +40,32 @@ interface ProfileStatus {
   missingFields: string[];
 }
 
+interface AiSafetyMetrics {
+  total_triage_requests: number;
+  triage_distribution: Record<string, number>;
+  emergency_override_count: number;
+  average_latency_ms: number;
+  json_validation_pass_rate: number;
+  fallback_rate: number;
+  citation_rate: number;
+  most_retrieved_sources: Array<{ source: string; count: number }>;
+  latest_eval_run: {
+    mode: string | null;
+    case_count: number;
+    metrics: Record<string, number>;
+  } | null;
+  failed_eval_cases: Array<{
+    case_id: string;
+    category: string | null;
+    expected_triage_level: string | null;
+    predicted_triage_level: string | null;
+    fallback_reason: string | null;
+  }>;
+}
+
 type TriageFilter = "all" | "home" | "pcp" | "urgent_care" | "er";
 type SessionSort = "newest" | "oldest" | "urgency";
+type DashboardTab = "overview" | "ai-safety";
 
 const SESSION_PAGE_LIMIT = 10;
 
@@ -76,14 +100,21 @@ export default function DashboardPage() {
   );
   const [usage, setUsage] = useState<TodayUsage | null>(null);
   const [usageError, setUsageError] = useState<string | null>(null);
-  const [profileStatus, setProfileStatus] = useState<ProfileStatus | null>(null);
+  const [profileStatus, setProfileStatus] = useState<ProfileStatus | null>(
+    null,
+  );
+  const [activeTab, setActiveTab] = useState<DashboardTab>("overview");
+  const [aiMetrics, setAiMetrics] = useState<AiSafetyMetrics | null>(null);
+  const [aiMetricsLoading, setAiMetricsLoading] = useState(false);
+  const [aiMetricsError, setAiMetricsError] = useState<string | null>(null);
   const [sessionSearch, setSessionSearch] = useState("");
   const [triageFilter, setTriageFilter] = useState<TriageFilter>("all");
   const [sessionSort, setSessionSort] = useState<SessionSort>("newest");
   const symptomLimit = usage?.symptom_checks_limit ?? 5;
   const symptomUsed = usage?.symptom_checks_used ?? 0;
   const isAtSymptomLimit = symptomUsed >= symptomLimit;
-  const isNearSymptomLimit = !isAtSymptomLimit && symptomLimit - symptomUsed <= 1;
+  const isNearSymptomLimit =
+    !isAtSymptomLimit && symptomLimit - symptomUsed <= 1;
   const chatLimit = usage?.chats_limit ?? 10;
   const chatUsed = usage?.chats_used ?? 0;
   const isNearChatLimit =
@@ -180,7 +211,9 @@ export default function DashboardPage() {
 
       setUsage(data);
     } catch (error) {
-      setUsageError(error instanceof Error ? error.message : "Usage unavailable");
+      setUsageError(
+        error instanceof Error ? error.message : "Usage unavailable",
+      );
     }
   }, [loading, isGuest]);
 
@@ -203,11 +236,50 @@ export default function DashboardPage() {
     }
   }, [loading, isGuest]);
 
+  const loadAiMetrics = useCallback(async () => {
+    if (loading || isGuest) return;
+
+    setAiMetricsLoading(true);
+    setAiMetricsError(null);
+
+    try {
+      const token = await getAccessToken();
+      if (!token) {
+        router.push("/");
+        return;
+      }
+
+      const data = await apiFetch<AiSafetyMetrics>("/ai/metrics", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      setAiMetrics(data);
+    } catch (error) {
+      if (error instanceof ApiError && error.statusCode === 401) {
+        router.push("/");
+        return;
+      }
+      setAiMetricsError(
+        error instanceof Error ? error.message : "AI metrics unavailable",
+      );
+    } finally {
+      setAiMetricsLoading(false);
+    }
+  }, [loading, isGuest, router]);
+
   useEffect(() => {
     loadSessions();
     loadUsage();
     loadProfileStatus();
   }, [loadSessions, loadUsage, loadProfileStatus]);
+
+  useEffect(() => {
+    if (activeTab === "ai-safety") {
+      loadAiMetrics();
+    }
+  }, [activeTab, loadAiMetrics]);
 
   const deleteSession = useCallback(
     async (sessionId: string) => {
@@ -278,245 +350,287 @@ export default function DashboardPage() {
       <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome back 👋</h1>
       <p className="text-gray-500 mb-8">{user?.email}</p>
 
-      {profileStatus && !profileStatus.complete && (
-        <div className="mb-6 rounded-2xl border border-blue-100 bg-blue-50 p-5">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className="font-semibold text-blue-950">
-                Complete your health profile for better symptom guidance.
-              </h2>
-              <p className="mt-1 text-sm text-blue-700">
-                It only needs a few basics, and you can update it anytime.
-              </p>
-            </div>
-            <Link
-              href="/profile"
-              className="inline-flex shrink-0 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
-            >
-              Complete profile
-            </Link>
-          </div>
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-10">
-        {isAtSymptomLimit ? (
-          <div className="block rounded-2xl bg-gray-200 p-6 text-gray-500">
-            <h2 className="mb-1 text-xl font-semibold">Start Symptom Check</h2>
-            <p className="text-sm">
-              Daily limit reached. You can start again tomorrow.
-            </p>
-          </div>
-        ) : (
-          <Link
-            href="/symptom-check"
-            className="block rounded-2xl bg-blue-600 p-6 text-white transition hover:bg-blue-700"
-          >
-            <h2 className="mb-1 text-xl font-semibold">Start Symptom Check</h2>
-            <p className="text-sm text-blue-100">
-              Get AI-powered triage guidance
-            </p>
-          </Link>
-        )}
-        <Link
-          href="/profile"
-          className="block p-6 bg-white border border-gray-200 rounded-2xl hover:border-blue-300 transition"
+      <div className="mb-6 flex rounded-xl border border-gray-200 bg-white p-1">
+        <button
+          type="button"
+          onClick={() => setActiveTab("overview")}
+          className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition ${
+            activeTab === "overview"
+              ? "bg-blue-600 text-white"
+              : "text-gray-600 hover:bg-gray-50 hover:text-blue-700"
+          }`}
         >
-          <h2 className="text-xl font-semibold text-gray-800 mb-1">
-            My Profile
-          </h2>
-          <p className="text-gray-400 text-sm">
-            Update health info & preferences
-          </p>
-        </Link>
+          Overview
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("ai-safety")}
+          className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition ${
+            activeTab === "ai-safety"
+              ? "bg-blue-600 text-white"
+              : "text-gray-600 hover:bg-gray-50 hover:text-blue-700"
+          }`}
+        >
+          AI Safety and Evaluation
+        </button>
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-2xl p-6 mb-6">
-        <h2 className="text-lg font-semibold text-gray-800 mb-2">
-          Today&apos;s Usage
-        </h2>
-        {usageError ? (
-          <p className="text-sm text-gray-400">{usageError}</p>
-        ) : (
-          <div className="space-y-2 text-gray-600">
-            <UsageLine
-              label="Symptom checks"
-              used={symptomUsed}
-              limit={symptomLimit}
-            />
-            <UsageLine
-              label="Follow-up chats"
-              used={chatUsed}
-              limit={usage?.chats_limit ?? null}
-            />
-            {isNearSymptomLimit && (
-              <p className="text-sm text-amber-700">
-                You have one symptom check left today.
-              </p>
-            )}
-            {isAtSymptomLimit && (
-              <p className="text-sm text-red-600">
-                You have reached today&apos;s symptom check limit.
-              </p>
-            )}
-            {isNearChatLimit && (
-              <p className="text-sm text-amber-700">
-                You are close to today&apos;s chat limit.
-              </p>
-            )}
-          </div>
-        )}
-      </div>
+      {activeTab === "ai-safety" ? (
+        <AiSafetyPanel
+          metrics={aiMetrics}
+          loading={aiMetricsLoading}
+          error={aiMetricsError}
+          onRetry={loadAiMetrics}
+        />
+      ) : (
+        <>
+          {profileStatus && !profileStatus.complete && (
+            <div className="mb-6 rounded-2xl border border-blue-100 bg-blue-50 p-5">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="font-semibold text-blue-950">
+                    Complete your health profile for better symptom guidance.
+                  </h2>
+                  <p className="mt-1 text-sm text-blue-700">
+                    It only needs a few basics, and you can update it anytime.
+                  </p>
+                </div>
+                <Link
+                  href="/profile"
+                  className="inline-flex shrink-0 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
+                >
+                  Complete profile
+                </Link>
+              </div>
+            </div>
+          )}
 
-      <div className="bg-white border border-gray-200 rounded-2xl p-6">
-        <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-gray-800">
-              Recent Sessions
-            </h2>
-            <p className="mt-1 text-sm text-gray-500">
-              {hasSessionFilters
-                ? `${visibleSessions.length} of ${sessions.length} sessions shown on this page (${sessionTotal} total)`
-                : `${sessionTotal} total sessions`}
-            </p>
-          </div>
-        </div>
-
-        {sessionFeedback && (
-          <div className="mb-4 rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700">
-            {sessionFeedback}
-          </div>
-        )}
-
-        {sessionsLoading ? (
-          <p className="text-gray-400 text-sm">Loading recent sessions...</p>
-        ) : sessionsError ? (
-          <ErrorState
-            message={sessionsError}
-            action={
-              <button
-                onClick={loadSessions}
-                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition"
-              >
-                Retry
-              </button>
-            }
-          />
-        ) : sessionTotal === 0 ? (
-          <EmptyState
-            title="No sessions yet"
-            description="Your completed symptom checks will show up here."
-            action={
-              !isAtSymptomLimit && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-10">
+            {isAtSymptomLimit ? (
+              <div className="block rounded-2xl bg-gray-200 p-6 text-gray-500">
+                <h2 className="mb-1 text-xl font-semibold">
+                  Start Symptom Check
+                </h2>
+                <p className="text-sm">
+                  Daily limit reached. You can start again tomorrow.
+                </p>
+              </div>
+            ) : (
               <Link
                 href="/symptom-check"
-                className="inline-flex rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
+                className="block rounded-2xl bg-blue-600 p-6 text-white transition hover:bg-blue-700"
               >
-                Start your first symptom check
+                <h2 className="mb-1 text-xl font-semibold">
+                  Start Symptom Check
+                </h2>
+                <p className="text-sm text-blue-100">
+                  Get AI-powered triage guidance
+                </p>
               </Link>
-              )
-            }
-          />
-        ) : (
-          <>
-            <div className="mb-4 space-y-3">
-              <input
-                type="search"
-                value={sessionSearch}
-                onChange={(event) => setSessionSearch(event.target.value)}
-                placeholder="Search sessions, triage, or specialty..."
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
-              />
+            )}
+            <Link
+              href="/profile"
+              className="block p-6 bg-white border border-gray-200 rounded-2xl hover:border-blue-300 transition"
+            >
+              <h2 className="text-xl font-semibold text-gray-800 mb-1">
+                My Profile
+              </h2>
+              <p className="text-gray-400 text-sm">
+                Update health info & preferences
+              </p>
+            </Link>
+          </div>
 
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex flex-wrap gap-2">
-                  {TRIAGE_FILTERS.map((filter) => (
-                    <button
-                      key={filter.value}
-                      type="button"
-                      onClick={() => setTriageFilter(filter.value)}
-                      className={`rounded-full border px-3 py-1.5 text-sm font-medium transition ${
-                        triageFilter === filter.value
-                          ? "border-blue-600 bg-blue-50 text-blue-700"
-                          : "border-gray-200 bg-white text-gray-600 hover:border-blue-300 hover:text-blue-700"
-                      }`}
-                    >
-                      {filter.label}
-                    </button>
-                  ))}
-                </div>
+          <div className="bg-white border border-gray-200 rounded-2xl p-6 mb-6">
+            <h2 className="text-lg font-semibold text-gray-800 mb-2">
+              Today&apos;s Usage
+            </h2>
+            {usageError ? (
+              <p className="text-sm text-gray-400">{usageError}</p>
+            ) : (
+              <div className="space-y-2 text-gray-600">
+                <UsageLine
+                  label="Symptom checks"
+                  used={symptomUsed}
+                  limit={symptomLimit}
+                />
+                <UsageLine
+                  label="Follow-up chats"
+                  used={chatUsed}
+                  limit={usage?.chats_limit ?? null}
+                />
+                {isNearSymptomLimit && (
+                  <p className="text-sm text-amber-700">
+                    You have one symptom check left today.
+                  </p>
+                )}
+                {isAtSymptomLimit && (
+                  <p className="text-sm text-red-600">
+                    You have reached today&apos;s symptom check limit.
+                  </p>
+                )}
+                {isNearChatLimit && (
+                  <p className="text-sm text-amber-700">
+                    You are close to today&apos;s chat limit.
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
 
-                <select
-                  value={sessionSort}
-                  onChange={(event) =>
-                    setSessionSort(event.target.value as SessionSort)
-                  }
-                  className="rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
-                >
-                  <option value="newest">Newest first</option>
-                  <option value="oldest">Oldest first</option>
-                  <option value="urgency">Highest urgency first</option>
-                </select>
+          <div className="bg-white border border-gray-200 rounded-2xl p-6">
+            <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-800">
+                  Recent Sessions
+                </h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  {hasSessionFilters
+                    ? `${visibleSessions.length} of ${sessions.length} sessions shown on this page (${sessionTotal} total)`
+                    : `${sessionTotal} total sessions`}
+                </p>
               </div>
             </div>
 
-            {visibleSessions.length === 0 ? (
-              <>
-                <EmptyState
-                  title="No matching sessions"
-                  description="No sessions match your search or filters on this page."
-                  action={
+            {sessionFeedback && (
+              <div className="mb-4 rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700">
+                {sessionFeedback}
+              </div>
+            )}
+
+            {sessionsLoading ? (
+              <p className="text-gray-400 text-sm">
+                Loading recent sessions...
+              </p>
+            ) : sessionsError ? (
+              <ErrorState
+                message={sessionsError}
+                action={
                   <button
-                    type="button"
-                    onClick={() => {
-                      setSessionSearch("");
-                      setTriageFilter("all");
-                    }}
-                    className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-gray-700 ring-1 ring-gray-200 transition hover:text-blue-700 hover:ring-blue-200"
+                    onClick={loadSessions}
+                    className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition"
                   >
-                    Clear filters
+                    Retry
                   </button>
-                  }
-                />
-                <PaginationControls
-                  page={sessionPage}
-                  totalPages={sessionTotalPages}
-                  loading={sessionsLoading}
-                  onPrevious={() =>
-                    setSessionPage((current) => Math.max(1, current - 1))
-                  }
-                  onNext={() =>
-                    setSessionPage((current) =>
-                      Math.min(sessionTotalPages, current + 1),
-                    )
-                  }
-                />
-              </>
+                }
+              />
+            ) : sessionTotal === 0 ? (
+              <EmptyState
+                title="No sessions yet"
+                description="Your completed symptom checks will show up here."
+                action={
+                  !isAtSymptomLimit && (
+                    <Link
+                      href="/symptom-check"
+                      className="inline-flex rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
+                    >
+                      Start your first symptom check
+                    </Link>
+                  )
+                }
+              />
             ) : (
               <>
-                <SessionList
-                  sessions={visibleSessions}
-                  deletingSessionId={deletingSessionId}
-                  onDelete={deleteSession}
-                />
-                <PaginationControls
-                  page={sessionPage}
-                  totalPages={sessionTotalPages}
-                  loading={sessionsLoading}
-                  onPrevious={() =>
-                    setSessionPage((current) => Math.max(1, current - 1))
-                  }
-                  onNext={() =>
-                    setSessionPage((current) =>
-                      Math.min(sessionTotalPages, current + 1),
-                    )
-                  }
-                />
+                <div className="mb-4 space-y-3">
+                  <input
+                    type="search"
+                    value={sessionSearch}
+                    onChange={(event) => setSessionSearch(event.target.value)}
+                    placeholder="Search sessions, triage, or specialty..."
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                  />
+
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex flex-wrap gap-2">
+                      {TRIAGE_FILTERS.map((filter) => (
+                        <button
+                          key={filter.value}
+                          type="button"
+                          onClick={() => setTriageFilter(filter.value)}
+                          className={`rounded-full border px-3 py-1.5 text-sm font-medium transition ${
+                            triageFilter === filter.value
+                              ? "border-blue-600 bg-blue-50 text-blue-700"
+                              : "border-gray-200 bg-white text-gray-600 hover:border-blue-300 hover:text-blue-700"
+                          }`}
+                        >
+                          {filter.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    <select
+                      value={sessionSort}
+                      onChange={(event) =>
+                        setSessionSort(event.target.value as SessionSort)
+                      }
+                      className="rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                    >
+                      <option value="newest">Newest first</option>
+                      <option value="oldest">Oldest first</option>
+                      <option value="urgency">Highest urgency first</option>
+                    </select>
+                  </div>
+                </div>
+
+                {visibleSessions.length === 0 ? (
+                  <>
+                    <EmptyState
+                      title="No matching sessions"
+                      description="No sessions match your search or filters on this page."
+                      action={
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSessionSearch("");
+                            setTriageFilter("all");
+                          }}
+                          className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-gray-700 ring-1 ring-gray-200 transition hover:text-blue-700 hover:ring-blue-200"
+                        >
+                          Clear filters
+                        </button>
+                      }
+                    />
+                    <PaginationControls
+                      page={sessionPage}
+                      totalPages={sessionTotalPages}
+                      loading={sessionsLoading}
+                      onPrevious={() =>
+                        setSessionPage((current) => Math.max(1, current - 1))
+                      }
+                      onNext={() =>
+                        setSessionPage((current) =>
+                          Math.min(sessionTotalPages, current + 1),
+                        )
+                      }
+                    />
+                  </>
+                ) : (
+                  <>
+                    <SessionList
+                      sessions={visibleSessions}
+                      deletingSessionId={deletingSessionId}
+                      onDelete={deleteSession}
+                    />
+                    <PaginationControls
+                      page={sessionPage}
+                      totalPages={sessionTotalPages}
+                      loading={sessionsLoading}
+                      onPrevious={() =>
+                        setSessionPage((current) => Math.max(1, current - 1))
+                      }
+                      onNext={() =>
+                        setSessionPage((current) =>
+                          Math.min(sessionTotalPages, current + 1),
+                        )
+                      }
+                    />
+                  </>
+                )}
               </>
             )}
-          </>
-        )}
-      </div>
+          </div>
+        </>
+      )}
 
       <button
         onClick={logout}
@@ -524,6 +638,214 @@ export default function DashboardPage() {
       >
         Sign out
       </button>
+    </div>
+  );
+}
+
+function AiSafetyPanel({
+  metrics,
+  loading,
+  error,
+  onRetry,
+}: {
+  metrics: AiSafetyMetrics | null;
+  loading: boolean;
+  error: string | null;
+  onRetry: () => void;
+}) {
+  if (loading) {
+    return (
+      <div className="rounded-2xl border border-gray-200 bg-white p-6 text-sm text-gray-400">
+        Loading AI safety metrics...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <ErrorState
+        message={error}
+        action={
+          <button
+            type="button"
+            onClick={onRetry}
+            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition"
+          >
+            Retry
+          </button>
+        }
+      />
+    );
+  }
+
+  if (!metrics || metrics.total_triage_requests === 0) {
+    return (
+      <EmptyState
+        title="No AI safety data yet"
+        description="Aggregated trace and eval metrics will appear after AI triage runs are logged."
+      />
+    );
+  }
+
+  const mainCards = [
+    {
+      label: "Triage requests",
+      value: String(metrics.total_triage_requests),
+    },
+    {
+      label: "Emergency overrides",
+      value: String(metrics.emergency_override_count),
+    },
+    {
+      label: "Avg latency",
+      value: `${metrics.average_latency_ms} ms`,
+    },
+    {
+      label: "JSON pass rate",
+      value: formatRate(metrics.json_validation_pass_rate),
+    },
+    {
+      label: "Fallback rate",
+      value: formatRate(metrics.fallback_rate),
+    },
+    {
+      label: "Citation rate",
+      value: formatRate(metrics.citation_rate),
+    },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {mainCards.map((card) => (
+          <div
+            key={card.label}
+            className="rounded-2xl border border-gray-200 bg-white p-5"
+          >
+            <p className="text-sm text-gray-500">{card.label}</p>
+            <p className="mt-2 text-2xl font-semibold text-gray-900">
+              {card.value}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <section className="rounded-2xl border border-gray-200 bg-white p-6">
+          <h2 className="text-lg font-semibold text-gray-800">
+            Triage Distribution
+          </h2>
+          {Object.keys(metrics.triage_distribution).length === 0 ? (
+            <p className="mt-3 text-sm text-gray-400">No triage levels yet.</p>
+          ) : (
+            <div className="mt-4 space-y-3">
+              {Object.entries(metrics.triage_distribution).map(
+                ([level, count]) => (
+                  <div
+                    key={level}
+                    className="flex items-center justify-between gap-3 text-sm"
+                  >
+                    <span className="text-gray-600">
+                      {formatTriageLevel(level)}
+                    </span>
+                    <span className="font-semibold text-gray-900">{count}</span>
+                  </div>
+                ),
+              )}
+            </div>
+          )}
+        </section>
+
+        <section className="rounded-2xl border border-gray-200 bg-white p-6">
+          <h2 className="text-lg font-semibold text-gray-800">
+            Retrieved Sources
+          </h2>
+          {metrics.most_retrieved_sources.length === 0 ? (
+            <p className="mt-3 text-sm text-gray-400">
+              No citations have been retrieved yet.
+            </p>
+          ) : (
+            <div className="mt-4 space-y-3">
+              {metrics.most_retrieved_sources.map((source) => (
+                <div
+                  key={source.source}
+                  className="flex items-center justify-between gap-3 text-sm"
+                >
+                  <span className="truncate text-gray-600">
+                    {source.source}
+                  </span>
+                  <span className="font-semibold text-gray-900">
+                    {source.count}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
+
+      <section className="rounded-2xl border border-gray-200 bg-white p-6">
+        <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-800">
+              Latest Eval Run
+            </h2>
+            <p className="mt-1 text-sm text-gray-500">
+              {metrics.latest_eval_run
+                ? `${metrics.latest_eval_run.mode ?? "unknown"} mode, ${metrics.latest_eval_run.case_count} cases`
+                : "No eval run available"}
+            </p>
+          </div>
+          {metrics.latest_eval_run?.metrics?.triage_accuracy !== undefined && (
+            <p className="text-sm font-semibold text-gray-900">
+              Accuracy{" "}
+              {formatRate(metrics.latest_eval_run.metrics.triage_accuracy)}
+            </p>
+          )}
+        </div>
+
+        {metrics.failed_eval_cases.length === 0 ? (
+          <EmptyState
+            title="No failed eval cases"
+            description="The latest eval run did not report triage mismatches."
+          />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-left text-sm">
+              <thead className="border-b border-gray-100 text-gray-500">
+                <tr>
+                  <th className="py-2 pr-4 font-medium">Case</th>
+                  <th className="py-2 pr-4 font-medium">Category</th>
+                  <th className="py-2 pr-4 font-medium">Expected</th>
+                  <th className="py-2 pr-4 font-medium">Predicted</th>
+                  <th className="py-2 font-medium">Fallback</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 text-gray-700">
+                {metrics.failed_eval_cases.map((failure) => (
+                  <tr key={failure.case_id}>
+                    <td className="py-3 pr-4 font-medium text-gray-900">
+                      {failure.case_id}
+                    </td>
+                    <td className="py-3 pr-4">
+                      {failure.category ?? "Unknown"}
+                    </td>
+                    <td className="py-3 pr-4">
+                      {formatTriageLevel(failure.expected_triage_level)}
+                    </td>
+                    <td className="py-3 pr-4">
+                      {formatTriageLevel(failure.predicted_triage_level)}
+                    </td>
+                    <td className="py-3">
+                      {failure.fallback_reason ?? "None"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
     </div>
   );
 }
@@ -646,7 +968,9 @@ function UsageLine({
   );
 }
 
-function normalizeTriageForFilter(level: string | null | undefined): TriageFilter {
+function normalizeTriageForFilter(
+  level: string | null | undefined,
+): TriageFilter {
   if (level === "emergency" || level === "er") return "er";
   if (level === "urgent_care") return "urgent_care";
   if (level === "pcp") return "pcp";
@@ -654,15 +978,9 @@ function normalizeTriageForFilter(level: string | null | undefined): TriageFilte
   return "all";
 }
 
-function sortSessions(
-  a: SessionSummary,
-  b: SessionSummary,
-  sort: SessionSort,
-) {
+function sortSessions(a: SessionSummary, b: SessionSummary, sort: SessionSort) {
   if (sort === "oldest") {
-    return (
-      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-    );
+    return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
   }
 
   if (sort === "urgency") {
@@ -673,6 +991,19 @@ function sortSessions(
   }
 
   return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+}
+
+function formatRate(value: number | null | undefined) {
+  if (!Number.isFinite(value)) return "0%";
+  return `${Math.round((value ?? 0) * 100)}%`;
+}
+
+function formatTriageLevel(level: string | null | undefined) {
+  if (!level) return "Unknown";
+  return level
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
 }
 
 async function getAccessToken() {
