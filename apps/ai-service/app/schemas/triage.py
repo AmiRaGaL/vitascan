@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
@@ -24,3 +26,12 @@ class TriageResponse(BaseModel):
     follow_up_questions: list[str] = Field(default_factory=list)
     safety_override_applied: bool = False
     trace_id: str
+
+
+class TriageDecision(BaseModel):
+    triage_level: Literal["home_care", "primary_care", "urgent_care", "emergency"]
+    confidence: float = Field(ge=0, le=1)
+    reasoning: list[str] = Field(default_factory=list)
+    evidence_ids: list[str] = Field(default_factory=list)
+    follow_up_questions: list[str] = Field(default_factory=list)
+    safety_override_applied: bool = False

@@ -45,7 +45,7 @@ class TriageRouteTest(unittest.TestCase):
 
         self.assertEqual(response.status_code, 401)
 
-    def test_triage_with_token_returns_mock_response(self):
+    def test_triage_with_token_returns_fallback_response(self):
         response = client.post(
             "/triage/run",
             json=self.payload(),
@@ -53,18 +53,14 @@ class TriageRouteTest(unittest.TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(
-            response.json(),
-            {
-                "triage_level": "primary_care",
-                "confidence": 0.5,
-                "response": "Mock triage response...",
-                "citations": [],
-                "follow_up_questions": [],
-                "safety_override_applied": False,
-                "trace_id": "mock_trace_session-123",
-            },
-        )
+        body = response.json()
+        self.assertEqual(body["triage_level"], "urgent_care")
+        self.assertEqual(body["confidence"], 0.45)
+        self.assertEqual(body["citations"], [])
+        self.assertEqual(body["follow_up_questions"], [])
+        self.assertFalse(body["safety_override_applied"])
+        self.assertEqual(body["trace_id"], "mock_trace_session-123")
+        self.assertIn("educational triage guidance", body["response"])
 
     def test_chest_pain_and_sweating_returns_emergency_override(self):
         response = self.authorized_post("I have chest pain and sweating.")
@@ -88,7 +84,7 @@ class TriageRouteTest(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["triage_level"], "primary_care")
-        self.assertEqual(response.json()["confidence"], 0.5)
+        self.assertEqual(response.json()["confidence"], 0.45)
         self.assertFalse(response.json()["safety_override_applied"])
 
     def test_retrieval_failure_keeps_triage_response_safe(self):
