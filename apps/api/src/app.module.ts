@@ -8,6 +8,7 @@ import { UsageModule } from './usage/usage.module';
 import { RecipesModule } from './recipes/recipes.module';
 import { ChatModule } from './chat/chat.module';
 import { SecurityModule } from './security/security.module';
+import { AiModule } from './ai/ai.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { SecurityModule } from './security/security.module';
     RecipesModule,
     ChatModule,
     SecurityModule,
+    AiModule,
   ],
   controllers: [AppController],
   providers: [AppService],
