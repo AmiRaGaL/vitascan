@@ -25,6 +25,7 @@ import {
 } from '../docs/swagger.dto';
 import { SupabaseService } from '../supabase/supabase.service';
 import { GroqService } from './groq.service';
+import { AiServiceClient, AiTriageResponse } from './ai-service.client';
 import { OptionalAuthGuard } from '../auth/optional-auth.guard';
 import { RedFlagsService } from './red-flags.service';
 import {
@@ -37,6 +38,7 @@ import type {
   SymptomCategory,
   SymptomQuestion,
   StructuredSymptomRequest,
+  TriageResult,
 } from '@vitascan/shared';
 
 const SYMPTOM_LIMITS = {
@@ -54,6 +56,7 @@ export class SymptomController {
   constructor(
     private readonly supabase: SupabaseService,
     private readonly groq: GroqService,
+    private readonly aiService: AiServiceClient,
     private readonly redFlags: RedFlagsService,
     private readonly knowledgeBase: KnowledgeBaseService,
     private readonly rateLimit: RateLimitService,
@@ -258,13 +261,12 @@ export class SymptomController {
         HttpStatus.UNAUTHORIZED,
       );
 
-    const { data: session, error: sessionError } =
-      await this.supabase.supabase
-        .from('symptom_sessions')
-        .select('id')
-        .eq('id', id)
-        .eq('user_id', req.user.id)
-        .maybeSingle();
+    const { data: session, error: sessionError } = await this.supabase.supabase
+      .from('symptom_sessions')
+      .select('id')
+      .eq('id', id)
+      .eq('user_id', req.user.id)
+      .maybeSingle();
 
     if (sessionError)
       throw new HttpException(
@@ -319,9 +321,10 @@ export class SymptomController {
     const ragReferences = this.formatReferenceSummary(referenceChunks);
 
     // 1. Get AI response
-    let triageResult = await this.groq.analyzeStructuredSymptoms(
+    let triageResult = await this.analyzeWithConfiguredProvider(
       body,
       referenceChunks,
+      req,
     );
 
     // 2. Apply Rule-Based Overrides
@@ -390,11 +393,7 @@ export class SymptomController {
 
     const age = body.health_profile?.age;
     const sex = body.health_profile?.sex_at_birth;
-    const combinedText = [
-      body.body_area_name,
-      body.symptom_name,
-      answersText,
-    ]
+    const combinedText = [body.body_area_name, body.symptom_name, answersText]
       .join(' ')
       .toLowerCase();
     const redFlagTerms = this.extractRedFlagTerms(combinedText);
@@ -407,6 +406,65 @@ export class SymptomController {
       `Sex assigned at birth: ${sex ?? 'Not provided'}`,
       `Red-flag terms: ${redFlagTerms.join(', ') || 'None detected in query text'}`,
     ].join('\n');
+  }
+
+  private async analyzeWithConfiguredProvider(
+    body: StructuredSymptomRequest,
+    referenceChunks: KnowledgeBaseChunk[],
+    req: any,
+  ): Promise<TriageResult> {
+    if (process.env.USE_AI_SERVICE === 'true') {
+      const aiResponse = await this.aiService.runTriage({
+        user_id: req.user?.id ?? null,
+        session_id: body.symptom_category_id,
+        message: this.buildAiServiceMessage(body),
+        health_profile: {
+          age: body.health_profile?.age ?? null,
+          sex: body.health_profile?.sex_at_birth ?? null,
+          conditions: body.health_profile?.chronic_conditions ?? [],
+          medications: body.health_profile?.medications ?? [],
+          allergies: body.health_profile?.allergies ?? [],
+        },
+      });
+
+      return this.mapAiServiceResponse(aiResponse);
+    }
+
+    return this.groq.analyzeStructuredSymptoms(body, referenceChunks);
+  }
+
+  private buildAiServiceMessage(body: StructuredSymptomRequest): string {
+    const answers = body.answers
+      .map((answer) => {
+        const value = Array.isArray(answer.answer)
+          ? answer.answer.join(', ')
+          : answer.answer;
+        return `${answer.question_text}: ${value}`;
+      })
+      .join('\n');
+
+    return [
+      `${body.body_area_name}: ${body.symptom_name}`,
+      answers || 'No additional symptom details provided',
+    ].join('\n');
+  }
+
+  private mapAiServiceResponse(response: AiTriageResponse): TriageResult {
+    return {
+      triageLevel:
+        response.triage_level === 'primary_care'
+          ? 'pcp'
+          : (response.triage_level as TriageResult['triageLevel']),
+      specialtySuggestion: null,
+      possibleIssueCategories: [],
+      redFlags: response.safety_override_applied ? ['Safety override'] : [],
+      confidence: Math.round(response.confidence * 100),
+      homeCareAdvice: response.response,
+      doctorVisitPreparationTips:
+        response.follow_up_questions.length > 0
+          ? response.follow_up_questions.join(' ')
+          : 'Track your symptoms and share changes with a healthcare professional.',
+    };
   }
 
   private extractRedFlagTerms(text: string): string[] {

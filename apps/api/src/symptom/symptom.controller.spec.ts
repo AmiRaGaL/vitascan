@@ -8,6 +8,7 @@ describe('SymptomController payload validation', () => {
     {} as any,
     {} as any,
     {} as any,
+    {} as any,
   );
   const validateAnalyzePayload = (body: unknown) =>
     (controller as any).validateAnalyzePayload(body);
@@ -129,6 +130,17 @@ describe('SymptomController analyzeSymptoms', () => {
     const groq = {
       analyzeStructuredSymptoms: jest.fn().mockResolvedValue(triageResult),
     };
+    const aiService = {
+      runTriage: jest.fn().mockResolvedValue({
+        triage_level: 'primary_care',
+        confidence: 0.5,
+        response: 'Mock triage response...',
+        citations: [],
+        follow_up_questions: [],
+        safety_override_applied: false,
+        trace_id: 'mock_trace_symptom-id',
+      }),
+    };
     const redFlags = {
       evaluate: jest.fn().mockReturnValue(
         options?.redFlagEvaluation ?? {
@@ -155,12 +167,14 @@ describe('SymptomController analyzeSymptoms', () => {
       controller: new SymptomController(
         supabase as any,
         groq as any,
+        aiService as any,
         redFlags as any,
         knowledgeBase as any,
         rateLimit as any,
       ),
       supabase,
       groq,
+      aiService,
       redFlags,
       knowledgeBase,
       rateLimit,
@@ -213,7 +227,8 @@ describe('SymptomController analyzeSymptoms', () => {
   });
 
   it('blocks a fourth guest symptom check before calling KB, Groq, or Supabase insert', async () => {
-    const { controller, groq, knowledgeBase, sessionQuery } = createController();
+    const { controller, groq, knowledgeBase, sessionQuery } =
+      createController();
     const req = { headers: { 'x-forwarded-for': '203.0.113.102' } };
 
     await controller.analyzeSymptoms(validPayload, req);
@@ -289,5 +304,44 @@ describe('SymptomController analyzeSymptoms', () => {
         summary: 'Seek emergency care now.',
       }),
     );
+  });
+
+  it('routes structured triage through the AI service when enabled', async () => {
+    const previousFlag = process.env.USE_AI_SERVICE;
+    process.env.USE_AI_SERVICE = 'true';
+    const { controller, aiService, groq, sessionQuery } = createController();
+
+    try {
+      const response = await controller.analyzeSymptoms(validPayload, {
+        user: { id: 'user-id' },
+        headers: {},
+      });
+
+      expect(aiService.runTriage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          user_id: 'user-id',
+          session_id: 'symptom-id',
+          message: expect.stringContaining('Chest: Chest tightness'),
+        }),
+      );
+      expect(groq.analyzeStructuredSymptoms).not.toHaveBeenCalled();
+      expect(response.triage).toMatchObject({
+        triageLevel: 'pcp',
+        confidence: 50,
+        homeCareAdvice: 'Mock triage response...',
+      });
+      expect(sessionQuery.insert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          triage_level: 'pcp',
+          llm_confidence: 50,
+        }),
+      );
+    } finally {
+      if (previousFlag === undefined) {
+        delete process.env.USE_AI_SERVICE;
+      } else {
+        process.env.USE_AI_SERVICE = previousFlag;
+      }
+    }
   });
 });
