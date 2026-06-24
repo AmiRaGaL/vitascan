@@ -5,6 +5,7 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 os.environ["AI_SERVICE_TOKEN"] = "test-token"
+os.environ.pop("GROQ_API_KEY", None)
 
 from app.config import get_settings
 from app.main import app

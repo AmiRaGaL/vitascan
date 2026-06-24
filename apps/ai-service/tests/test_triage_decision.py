@@ -9,7 +9,7 @@ from app.agents.symptom_intake import normalize_symptoms
 from app.agents.triage_decision import decide_triage
 from app.config import get_settings
 from app.schemas.triage import HealthProfile
-from app.services.groq_client import GroqChatResult
+from app.services.groq_client import GroqChatResult, GroqRateLimitError
 
 
 class FakeGroqClient:
@@ -148,3 +148,18 @@ class TriageDecisionTest(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(decision.triage_level, "primary_care")
         self.assertEqual(decision.confidence, 0.45)
+
+    async def test_groq_rate_limit_uses_rate_limit_fallback_reason(self):
+        client = FakeGroqClient([GroqRateLimitError("groq_rate_limited")])
+
+        decision = await decide_triage(
+            normalized=normalize_symptoms("mild headache for one day"),
+            health_profile=HealthProfile(),
+            retrieved_chunks=[],
+            red_flags=RedFlagResult(),
+            groq_client=client,
+        )
+
+        self.assertEqual(decision.triage_level, "primary_care")
+        self.assertTrue(decision.fallback_used)
+        self.assertEqual(decision.reasoning[0], "groq_rate_limited")

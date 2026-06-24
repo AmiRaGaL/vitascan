@@ -14,25 +14,33 @@ class GroqChatResult:
     token_metadata: dict
 
 
+class GroqRateLimitError(RuntimeError):
+    pass
+
+
 class GroqClient:
     def __init__(
         self,
         api_key: str,
         model: str,
-        timeout_seconds: float = 25.0,
         max_retries: int = 2,
     ) -> None:
         self.api_key = api_key
         self.model = model
-        self.timeout_seconds = timeout_seconds
         self.max_retries = max_retries
+        self.timeout = httpx.Timeout(
+            connect=10.0,
+            read=30.0,
+            write=10.0,
+            pool=10.0,
+        )
 
     async def chat(self, messages: list[dict], temperature: float = 0.1) -> GroqChatResult:
         last_error: Exception | None = None
 
         for attempt in range(self.max_retries + 1):
             try:
-                async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
+                async with httpx.AsyncClient(timeout=self.timeout) as client:
                     response = await client.post(
                         "https://api.groq.com/openai/v1/chat/completions",
                         headers={
@@ -50,6 +58,8 @@ class GroqClient:
                 if response.status_code == 429 and attempt < self.max_retries:
                     await asyncio.sleep(self._retry_delay(response, attempt))
                     continue
+                if response.status_code == 429:
+                    raise GroqRateLimitError("groq_rate_limited")
 
                 response.raise_for_status()
                 payload = response.json()
@@ -63,6 +73,8 @@ class GroqClient:
                 if error.response.status_code == 429 and attempt < self.max_retries:
                     await asyncio.sleep(self._retry_delay(error.response, attempt))
                     continue
+                if error.response.status_code == 429:
+                    raise GroqRateLimitError("groq_rate_limited") from error
                 break
             except (httpx.HTTPError, KeyError, IndexError, TypeError) as error:
                 last_error = error
@@ -87,7 +99,7 @@ class GroqClient:
                 except (TypeError, ValueError):
                     pass
 
-        return float(2**attempt)
+        return float(2 ** (attempt + 1))
 
 
 def get_groq_client() -> GroqClient | None:
