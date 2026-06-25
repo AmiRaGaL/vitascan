@@ -2,7 +2,11 @@ from time import perf_counter
 
 from fastapi import APIRouter, Depends
 
-from app.agents.retrieval import retrieve_medical_chunks
+from app.agents.retrieval import (
+    EXPECTED_EMBEDDING_DIMENSIONS,
+    embed_query,
+    retrieve_medical_chunks,
+)
 from app.agents.response_builder import build_triage_response
 from app.agents.red_flag import detect_red_flags
 from app.agents.symptom_intake import normalize_symptoms
@@ -22,23 +26,35 @@ async def run_triage(payload: TriageRequest) -> TriageResponse:
     trace_id = f"mock_trace_{payload.session_id}"
     normalized_symptoms = normalize_symptoms(payload.message)
     red_flags = detect_red_flags(normalized_symptoms)
-    citations: list[dict] = []
+    retrieved_chunks: list[dict] = []
+    retrieval_error: str | None = None
 
     try:
-        citations = retrieve_medical_chunks(
-            query_text=payload.message,
-            query_embedding=[],
+        query_text = normalized_symptoms.chief_complaint or payload.message
+        query_embedding = embed_query(query_text)
+        if len(query_embedding) != EXPECTED_EMBEDDING_DIMENSIONS:
+            raise ValueError(
+                f"Query embedding length was {len(query_embedding)}, expected {EXPECTED_EMBEDDING_DIMENSIONS}."
+            )
+        retrieved_chunks = retrieve_medical_chunks(
+            query_text=query_text,
+            query_embedding=query_embedding,
             match_count=5,
         )
-    except Exception:
-        citations = []
+    except Exception as exc:
+        retrieval_error = str(exc)
+        retrieved_chunks = []
 
     decision = await decide_triage(
         normalized=normalized_symptoms,
         health_profile=payload.health_profile,
-        retrieved_chunks=citations,
+        retrieved_chunks=retrieved_chunks,
         red_flags=red_flags,
     )
+    decision = decision.model_copy(
+        update={"evidence_ids": get_retrieved_chunk_ids(retrieved_chunks)}
+    )
+    citations = build_citations(retrieved_chunks)
 
     response = build_triage_response(
         decision=decision,
@@ -59,7 +75,8 @@ async def run_triage(payload: TriageRequest) -> TriageResponse:
                     exclude={"raw_text"}
                 ),
                 red_flags=red_flags.model_dump(),
-                retrieved_chunks=citations,
+                retrieved_chunks=retrieved_chunks,
+                retrieval_error=retrieval_error,
                 triage_decision=decision.model_dump(
                     exclude={"model_name", "token_metadata"}
                 ),
@@ -73,3 +90,25 @@ async def run_triage(payload: TriageRequest) -> TriageResponse:
         pass
 
     return response
+
+
+def get_retrieved_chunk_ids(retrieved_chunks: list[dict]) -> list[str]:
+    return [
+        str(chunk["id"])
+        for chunk in retrieved_chunks
+        if chunk.get("id") is not None
+    ]
+
+
+def build_citations(retrieved_chunks: list[dict]) -> list[dict]:
+    citations = []
+    for chunk in retrieved_chunks:
+        citation = {
+            "id": chunk.get("id"),
+            "source": chunk.get("source"),
+            "title": chunk.get("title"),
+        }
+        if chunk.get("url"):
+            citation["url"] = chunk.get("url")
+        citations.append(citation)
+    return citations

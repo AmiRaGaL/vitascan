@@ -10,6 +10,7 @@ class TraceLogCreate(BaseModel):
     normalized_symptoms: dict = Field(default_factory=dict)
     red_flags: dict = Field(default_factory=dict)
     retrieved_chunks: list[dict] = Field(default_factory=list)
+    retrieval_error: str | None = None
     triage_decision: dict = Field(default_factory=dict)
     model_name: str | None = None
     token_metadata: dict = Field(default_factory=dict)
