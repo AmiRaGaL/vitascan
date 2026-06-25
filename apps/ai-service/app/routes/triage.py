@@ -1,3 +1,4 @@
+import logging
 from time import perf_counter
 
 from fastapi import APIRouter, Depends
@@ -18,6 +19,7 @@ from app.services.trace_logger import log_trace
 
 
 router = APIRouter(prefix="/triage", dependencies=[Depends(require_service_token)])
+logger = logging.getLogger(__name__)
 
 
 @router.post("/run", response_model=TriageResponse)
@@ -31,7 +33,9 @@ async def run_triage(payload: TriageRequest) -> TriageResponse:
 
     try:
         query_text = normalized_symptoms.chief_complaint or payload.message
+        logger.info("Retrieval query text length: %s", len(query_text))
         query_embedding = embed_query(query_text)
+        logger.info("Retrieval query embedding dimension: %s", len(query_embedding))
         if len(query_embedding) != EXPECTED_EMBEDDING_DIMENSIONS:
             raise ValueError(
                 f"Query embedding length was {len(query_embedding)}, expected {EXPECTED_EMBEDDING_DIMENSIONS}."
@@ -41,8 +45,10 @@ async def run_triage(payload: TriageRequest) -> TriageResponse:
             query_embedding=query_embedding,
             match_count=5,
         )
+        logger.info("Retrieval chunks returned: %s", len(retrieved_chunks))
     except Exception as exc:
-        retrieval_error = str(exc)
+        retrieval_error = short_error_message(exc)
+        logger.warning("Retrieval failed: %s", retrieval_error)
         retrieved_chunks = []
 
     decision = await decide_triage(
@@ -112,3 +118,8 @@ def build_citations(retrieved_chunks: list[dict]) -> list[dict]:
             citation["url"] = chunk.get("url")
         citations.append(citation)
     return citations
+
+
+def short_error_message(exc: Exception) -> str:
+    message = str(exc).strip() or exc.__class__.__name__
+    return message[:300]
