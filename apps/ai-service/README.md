@@ -16,6 +16,20 @@ AI_SERVICE_TOKEN=replace_me uvicorn app.main:app --host 0.0.0.0 --port 10000
 - `GET /health` is public and returns service status.
 - `POST /triage/run` requires the `x-service-token` header and returns a mock triage response.
 
+## Local embedding backfill
+
+Local embeddings use `fastembed` with `BAAI/bge-small-en-v1.5`, which outputs
+384-dimensional vectors for `medical_chunks.embedding`. This is local-only and
+is not installed or run on Render.
+
+```bash
+pip install -r requirements.local.txt
+python scripts/check_medical_chunk_embeddings.py
+python scripts/backfill_medical_chunk_embeddings.py --dry-run --limit 2
+python scripts/backfill_medical_chunk_embeddings.py --limit 5
+python scripts/backfill_medical_chunk_embeddings.py
+```
+
 ## Render deployment
 
 Create a Render web service with:
