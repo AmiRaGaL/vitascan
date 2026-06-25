@@ -66,7 +66,7 @@ def main() -> int:
 
     response = (
         client.table(TABLE_NAME)
-        .select("source,title,category")
+        .select("id,title,source")
         .filter("embedding", "is", "null")
         .order("id")
         .limit(5)
@@ -77,9 +77,9 @@ def main() -> int:
         print("Sample rows missing embeddings:")
         for row in samples:
             print(
-                f"- source={row.get('source') or ''} "
+                f"- id={row.get('id') or ''} "
                 f"title={row.get('title') or ''} "
-                f"category={row.get('category') or ''}"
+                f"source={row.get('source') or ''}"
             )
 
     return 0

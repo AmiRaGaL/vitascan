@@ -14,7 +14,7 @@ from typing import Any
 from dotenv import load_dotenv
 
 
-MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
+MODEL_NAME = "BAAI/bge-small-en-v1.5"
 TABLE_NAME = "medical_chunks"
 DEFAULT_BATCH_SIZE = 25
 EXPECTED_DIMENSIONS = 384
@@ -43,7 +43,7 @@ def get_missing_count(client: Any) -> int:
 def fetch_missing_rows(client: Any, batch_size: int, offset: int = 0) -> list[dict[str, Any]]:
     response = (
         client.table(TABLE_NAME)
-        .select("id,title,source,category,chunk_text")
+        .select("id,title,source,chunk_text")
         .filter("embedding", "is", "null")
         .order("id")
         .range(offset, offset + batch_size - 1)
@@ -72,7 +72,7 @@ def main() -> int:
         return 1
 
     try:
-        from sentence_transformers import SentenceTransformer
+        from fastembed import TextEmbedding
         from supabase import create_client
     except ImportError as exc:
         print(
@@ -97,7 +97,7 @@ def main() -> int:
     if total_missing == 0:
         return 0
 
-    model = SentenceTransformer(MODEL_NAME)
+    model = TextEmbedding(model_name=MODEL_NAME)
     completed = 0
 
     while completed < total_to_process:
@@ -108,7 +108,10 @@ def main() -> int:
             break
 
         texts = [str(row.get("chunk_text") or "") for row in rows]
-        embeddings = model.encode(texts, normalize_embeddings=True).tolist()
+        embeddings = [
+            embedding.tolist() if hasattr(embedding, "tolist") else list(embedding)
+            for embedding in model.embed(texts)
+        ]
 
         for row, embedding in zip(rows, embeddings, strict=True):
             if len(embedding) != EXPECTED_DIMENSIONS:
